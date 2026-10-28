@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fadenfreunde</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,600;1,9..144,800&family=Nunito:wght@600;800&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game" aria-label="Spielfeld"></canvas>
+
+<div id="hud" hidden>
+  <div class="hud-left">
+    <span id="hud-level" class="hud-chip"></span>
+    <span class="hud-chip"><span class="bead-dot" aria-hidden="true"></span><span id="hud-beads">0/8</span></span>
+    <span id="hud-who" class="hud-chip" hidden></span>
+  </div>
+  <div class="hud-right">
+    <button id="btn-mute" class="hud-btn" type="button" aria-label="Ton an/aus">♪</button>
+    <button id="btn-pause" class="hud-btn" type="button" aria-label="Pause">❚❚</button>
+  </div>
+</div>
+<div id="toasts" aria-live="polite"></div>
+
+<div id="touch" hidden>
+  <div class="tpad left">
+    <button type="button" data-code="TouchLeft" aria-label="Links">◀</button>
+    <button type="button" data-code="TouchDown" aria-label="Runter">▼</button>
+    <button type="button" data-code="TouchRight" aria-label="Rechts">▶</button>
+  </div>
+  <div class="tpad right">
+    <button type="button" data-code="TouchGrip" class="small">Halten</button>
+    <button type="button" data-code="TouchKnot" class="small">Knoten</button>
+    <button type="button" data-code="TouchLasso" class="mid">Lasso</button>
+    <button type="button" data-code="TouchUp" class="big" aria-label="Springen / hochklettern">▲</button>
+  </div>
+  <div class="tpad top solo-only">
+    <button type="button" data-code="TouchSwap" class="small">Wechsel</button>
+    <button type="button" data-code="TouchMerge" class="small">Huckepack</button>
+  </div>
+</div>
+
+<main id="screens">
+  <section id="scr-title" class="screen">
+    <div class="panel title-panel">
+      <h1 class="logo">Faden<span>freunde</span></h1>
+      <svg class="thread" viewBox="0 0 320 24" aria-hidden="true"><path d="M2 14 C 40 2, 70 24, 110 12 S 180 4, 210 14 S 280 22, 318 8"/></svg>
+      <p class="lede">Zwei kleine Wollfiguren, ein gemeinsamer Faden. Schwingt, klettert und knotet euch durch fünf Landschaften nach Hause.</p>
+      <div class="menu">
+        <button type="button" class="btn primary" data-act="solo"><b>Allein spielen</b><small>Wechseln und huckepack tragen</small></button>
+        <button type="button" class="btn primary blue" data-act="coop"><b>Zu zweit spielen</b><small>Eine Tastatur oder zwei Gamepads</small></button>
+        <button type="button" class="btn" data-act="help">Steuerung</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="scr-levels" class="screen" hidden>
+    <div class="panel">
+      <h2 id="levels-title">Level wählen</h2>
+      <ol id="level-list" class="levels"></ol>
+      <div class="menu row"><button type="button" class="btn" data-act="back">Zurück</button></div>
+    </div>
+  </section>
+
+  <section id="scr-help" class="screen" hidden>
+    <div class="panel help">
+      <h2>Steuerung</h2>
+      <div class="help-grid">
+        <div class="help-col">
+          <h3>Allein (Tastatur)</h3>
+          <dl>
+            <dt><kbd>A</kbd><kbd>D</kbd> · <kbd>←</kbd><kbd>→</kbd></dt><dd>Laufen, im Flug schwingen</dd>
+            <dt><kbd>W</kbd> · <kbd>↑</kbd> · <kbd>Leertaste</kbd></dt><dd>Springen, am Faden hochklettern</dd>
+            <dt><kbd>S</kbd> · <kbd>↓</kbd></dt><dd>Abseilen, durch Planken fallen</dd>
+            <dt><kbd>Q</kbd> · <kbd>J</kbd></dt><dd>Lasso werfen / loslassen</dd>
+            <dt><kbd>E</kbd> · <kbd>K</kbd></dt><dd>Festhalten (gedrückt halten)</dd>
+            <dt><kbd>R</kbd> · <kbd>L</kbd></dt><dd>Knoten zwischen zwei Pflöcken</dd>
+            <dt><kbd>Tab</kbd></dt><dd>Figur wechseln</dd>
+            <dt><kbd>F</kbd></dt><dd>Partner absetzen / huckepack nehmen</dd>
+          </dl>
+        </div>
+        <div class="help-col">
+          <h3>Zu zweit (eine Tastatur)</h3>
+          <dl>
+            <dt><span class="tag red">Rot</span></dt><dd><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> · Lasso <kbd>Q</kbd> · Halten <kbd>E</kbd> · Knoten <kbd>R</kbd></dd>
+            <dt><span class="tag blue">Blau</span></dt><dd><kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> oder Pfeile · Lasso <kbd>U</kbd> · Halten <kbd>O</kbd> · Knoten <kbd>P</kbd></dd>
+          </dl>
+          <h3>Gamepad</h3>
+          <dl>
+            <dt>Stick / Steuerkreuz</dt><dd>Laufen, schwingen, klettern</dd>
+            <dt><kbd>A</kbd></dt><dd>Springen, vom Lasso abspringen</dd>
+            <dt><kbd>X</kbd> · <kbd>B</kbd></dt><dd>Lasso · Knoten</dd>
+            <dt><kbd>RB</kbd> / <kbd>RT</kbd></dt><dd>Festhalten</dd>
+            <dt><kbd>Y</kbd> · <kbd>LB</kbd></dt><dd>Wechseln · Huckepack (allein)</dd>
+          </dl>
+          <p class="note">Zu zweit mit einem Gamepad spielt Blau am Gamepad und Rot an der Tastatur. <kbd>Esc</kbd> oder <kbd>Start</kbd> pausiert, <kbd>M</kbd> schaltet den Ton.</p>
+        </div>
+      </div>
+      <div class="menu row"><button type="button" class="btn" data-act="back">Zurück</button></div>
+    </div>
+  </section>
+
+  <section id="scr-pause" class="screen dim" hidden>
+    <div class="panel small">
+      <h2>Pause</h2>
+      <div class="menu">
+        <button type="button" class="btn primary" data-act="resume">Weiterspielen</button>
+        <button type="button" class="btn" data-act="checkpoint">Zum letzten Zwischenstand</button>
+        <button type="button" class="btn" data-act="restart">Level neu beginnen</button>
+        <button type="button" class="btn" data-act="help">Steuerung</button>
+        <button type="button" class="btn" data-act="menu">Hauptmenü</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="scr-win" class="screen dim" hidden>
+    <div class="panel small">
+      <h2 id="win-title">Geschafft!</h2>
+      <p id="win-text" class="lede"></p>
+      <div class="menu">
+        <button type="button" class="btn primary" data-act="next" id="btn-next">Nächstes Level</button>
+        <button type="button" class="btn" data-act="replay">Nochmal spielen</button>
+        <button type="button" class="btn" data-act="menu">Hauptmenü</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="src/core.js"></script>
+<script src="src/physics.js"></script>
+<script src="src/levels.js"></script>
+<script src="src/game.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/input.js"></script>
+<script src="src/render.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
