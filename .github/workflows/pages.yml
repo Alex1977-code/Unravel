@@ -29,6 +29,12 @@ jobs:
           mkdir -p _site
           cp -r index.html style.css src _site/
           node tools/build.js _site/fadenfreunde.html
+          # Versionsstempel: Dateien bekommen ?v=<commit>, damit Browser nie alte Stände aus dem Cache nehmen.
+          V="${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          echo "{\"v\":\"$V\"}" > _site/version.json
+          sed -i -E "s#(src=\"src/[a-z]+\.js)\"#\1?v=$V\"#g; s#href=\"style.css\"#href=\"style.css?v=$V\"#; s#<script src=\"src/core.js#<script>window.FF_VERSION='$V'</script>\n<script src=\"src/core.js#" _site/index.html
+          sed -i "s#<head>#<head>\n<meta http-equiv=\"Cache-Control\" content=\"no-cache\">#" _site/index.html _site/fadenfreunde.html
+          grep -c "?v=$V" _site/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

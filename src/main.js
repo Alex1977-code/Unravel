@@ -225,6 +225,23 @@
   show('title');
   requestAnimationFrame(loop);
 
+  // Neue Version auf dem Server? Dann im Menü neu laden, nie mitten im Level.
+  const myVersion = window.FF_VERSION;
+  function checkVersion() {
+    if (!myVersion || location.protocol === 'file:') return;
+    fetch('version.json?t=' + Date.now(), { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((v) => {
+        if (v && v.v && v.v !== myVersion && screen !== 'play' && screen !== 'pause') {
+          location.replace(location.pathname + '?v=' + encodeURIComponent(v.v));
+        }
+      })
+      .catch(() => {});
+  }
+  checkVersion();
+  setInterval(checkVersion, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkVersion(); });
+
   // Für Tests im Browser
   FF.debug = { get game() { return game; }, startLevel, setMode: (m) => (mode = m), input, renderer: R };
 })();
