@@ -45,6 +45,55 @@
       flower: ['#ffe9a8'], water: ['#8a6e7e', '#253852', '#0a1220'],
       tree: 'pine', amb: 'fireflies', grade: ['rgba(255,170,120,0.45)', 'rgba(20,24,60,0.7)'], rays: 0.45, bokeh: 0.9,
     },
+    marsh: {
+      sky: ['#8fa39a', '#c9cdb2', '#e6dcb4'], sun: [0.7, 0.22], light: '246,226,180', haze: '200,206,180',
+      far: '#93a08a', far2: '#7a8a72', mid: '#4d5e3e', near: '#253222', fg: '#0d130b',
+      earth: '#2a2218', earth2: '#100c08', stone: '#625a48', moss: '#7e8f3e', moss2: '#3c4a22', grass: '#93a24e', root: '#251a10',
+      flower: ['#b0263a', '#5a2a6a', '#f2e6c8'], water: ['#9db09a', '#36584e', '#0e2420'],
+      tree: 'round', amb: 'midges', grade: ['rgba(240,220,160,0.45)', 'rgba(30,50,40,0.6)'], rays: 0.6, bokeh: 0.6,
+    },
+    coast: {
+      sky: ['#6fa5c9', '#bcd7e3', '#f1e6cc'], sun: [0.75, 0.2], light: '255,240,210', haze: '214,228,232',
+      far: '#9cb7c4', far2: '#7fa0ad', mid: '#4f6a6a', near: '#26332f', fg: '#0c110f',
+      earth: '#5b4a36', earth2: '#1c160e', stone: '#9a8f7c', moss: '#b8b27a', moss2: '#6d6a40', grass: '#c2bd7c', root: '#3a2c1c',
+      flower: ['#f4f0e6', '#e7c35a'], water: ['#9cc6d2', '#2f6a80', '#0d2a36'], sea: true,
+      tree: 'pine', amb: 'mist', grade: ['rgba(255,236,200,0.4)', 'rgba(30,50,70,0.55)'], rays: 0.7, bokeh: 0.5,
+    },
+    winter: {
+      sky: ['#8aa3bf', '#c9d6e2', '#eef0ec'], sun: [0.3, 0.28], light: '240,244,255', haze: '220,228,238',
+      far: '#b4c2d0', far2: '#9aacbd', mid: '#5d6e7e', near: '#2a3440', fg: '#0e1218',
+      earth: '#3b3936', earth2: '#151515', stone: '#8c8e92', moss: '#9aa4a8', moss2: '#5a6670', grass: '#b5bdb2', root: '#2c2620',
+      flower: ['#ffffff'], water: ['#bcd2e0', '#4f7590', '#152636'],
+      tree: 'pine', amb: 'mist', grade: ['rgba(230,240,255,0.4)', 'rgba(30,40,60,0.6)'], rays: 0.4, bokeh: 0.5,
+    },
+    scrap: {
+      sky: ['#8a8072', '#c6b496', '#e9d2a6'], sun: [0.62, 0.3], light: '255,214,160', haze: '214,196,168',
+      far: '#a59680', far2: '#8a7c68', mid: '#5a4d3e', near: '#2c241c', fg: '#100c08',
+      earth: '#3a2c22', earth2: '#130e0a', stone: '#7a6a58', moss: '#8d8a4c', moss2: '#4d4a28', grass: '#a39a5a', root: '#2a1e14',
+      flower: ['#e8d07a'], water: ['#a8a080', '#4a5a4c', '#141c18'],
+      tree: 'round', amb: 'mist', grade: ['rgba(255,200,140,0.5)', 'rgba(50,40,30,0.6)'], rays: 0.7, bokeh: 0.5,
+    },
+    halloween: {
+      sky: ['#0d0a1f', '#2e1d45', '#c0582c'], sun: [0.72, 0.22], light: '200,210,255', haze: '96,70,110', moon: true,
+      far: '#2c2440', far2: '#211a32', mid: '#16121f', near: '#0b0910', fg: '#030205',
+      earth: '#1d1517', earth2: '#08060a', stone: '#4a4450', moss: '#4a5536', moss2: '#252c1c', grass: '#5a5f3c', root: '#140e10',
+      flower: ['#e8742a', '#f2c14a'], water: ['#5a4a70', '#1c2238', '#080a14'],
+      tree: 'dead', amb: 'wisps', grade: ['rgba(255,140,60,0.35)', 'rgba(20,10,40,0.75)'], rays: 0.2, bokeh: 0.9,
+    },
+    lighthouse: {
+      sky: ['#141c2c', '#2c3a50', '#5a6474'], sun: [0.2, 0.3], light: '220,230,255', haze: '80,94,110', sea: true,
+      far: '#2e3a48', far2: '#232d3a', mid: '#18202a', near: '#0c1117', fg: '#04070a',
+      earth: '#2a2622', earth2: '#0c0a09', stone: '#5a5c60', moss: '#50604a', moss2: '#283024', grass: '#6a7458', root: '#1a1612',
+      flower: ['#e8e4dc'], water: ['#5a7080', '#1c3444', '#08141c'],
+      tree: 'pine', amb: 'mist', grade: ['rgba(200,220,255,0.3)', 'rgba(10,16,30,0.75)'], rays: 0.3, bokeh: 0.8,
+    },
+    aurora: {
+      sky: ['#06101e', '#173248', '#3c6a6a'], sun: [0.65, 0.2], light: '200,240,230', haze: '60,90,100', moon: true, aurora: true,
+      far: '#1e3442', far2: '#162836', mid: '#0f1c26', near: '#081016', fg: '#020508',
+      earth: '#24262c', earth2: '#0a0a0e', stone: '#5c6470', moss: '#5a7a70', moss2: '#2a3c38', grass: '#8aa49a', root: '#16181c',
+      flower: ['#e0f4ff'], water: ['#4a7a8a', '#163848', '#06121a'],
+      tree: 'pine', amb: 'fireflies', grade: ['rgba(140,255,210,0.3)', 'rgba(10,20,40,0.75)'], rays: 0.15, bokeh: 0.8,
+    },
   };
   FF.THEMES = THEMES;
 
@@ -102,11 +151,11 @@
         }
         const blades = [], flowers = [], clumps = [], stones = [], roots = [];
         if (big) {
-          for (let x = r.x + 1; x < r.x + r.w - 1; x += 2.2 + rnd() * 2.6) {
+          for (let x = r.x + 1; !r.ice && x < r.x + r.w - 1; x += 2.2 + rnd() * 2.6) {
             blades.push({ x, h: 4 + rnd() * 9 + (rnd() < 0.08 ? 8 : 0), l: (rnd() - 0.5) * 6, c: rnd() < 0.55, p: rnd() * TAU });
             if (rnd() < 0.03) flowers.push({ x, h: 7 + rnd() * 8, c: Math.floor(rnd() * 10), p: rnd() * TAU });
           }
-          for (let x = r.x + 4; x < r.x + r.w - 4; x += 10 + rnd() * 18) clumps.push({ x, rx: 4 + rnd() * 7, ry: 2 + rnd() * 3 });
+          for (let x = r.x + 4; !r.ice && x < r.x + r.w - 4; x += 10 + rnd() * 18) clumps.push({ x, rx: 4 + rnd() * 7, ry: 2 + rnd() * 3 });
           const nS = Math.floor((r.w * Math.min(depth, 360)) / 2600);
           for (let i = 0; i < nS; i++) {
             const y = r.y + 16 + Math.pow(rnd(), 1.4) * (Math.min(depth, 360) - 20);
@@ -133,6 +182,19 @@
         }
         return out;
       });
+      // Requisiten auf den Oberseiten: Kürbisse und Grabsteine zu Halloween, Fässer und Reifen auf dem Schrottplatz
+      this.props = [];
+      const propKinds = { halloween: ['pumpkin', 'pumpkin', 'grave'], scrap: ['barrel', 'tire'], marsh: ['berries'] }[g.L.theme];
+      if (propKinds) {
+        for (const r of S) {
+          if (r.w > 2000 || r.h < 40 || r.ice) continue;
+          for (let x = r.x + 60 + rnd() * 120; x < r.x + r.w - 40; x += 160 + rnd() * 260) {
+            const busy = g.world.anchors.some((a) => Math.abs(a.x - x) < 40) || g.signs.some((sg) => Math.abs(sg.x - x) < 40) ||
+              g.checkpoints.some((c) => Math.abs(c.x - x) < 40) || Math.abs(g.goal.x - x) < 70;
+            if (!busy) this.props.push({ kind: propKinds[Math.floor(rnd() * propKinds.length)], x, y: r.y, s: 0.8 + rnd() * 0.5, seed: rnd() });
+          }
+        }
+      }
       this.amb = [];
       for (let i = 0; i < 46; i++) this.amb.push({ x: rnd(), y: rnd(), z: 0.4 + rnd() * 0.8, p: rnd() * TAU, s: 0.5 + rnd() });
       this.bokehs = [];
@@ -258,11 +320,14 @@
       for (const cp of g.checkpoints) this.drawCheckpoint(ctx, cp);
       for (const s of g.signs) this.drawSignPost(ctx, s);
       Wd.solids.forEach((r, i) => { if (this.vis(r)) this.drawSolid(ctx, r, this.deco[i]); });
+      for (const r of Wd.solids) if (r.ice && this.vis(r)) this.drawIce(ctx, r);
+      for (const pr of this.props) if (pr.x > view.x0 && pr.x < view.x1) this.drawProp(ctx, pr);
       for (const o of Wd.oneways) this.drawPlank(ctx, o);
       Wd.thorns.forEach((t, i) => this.drawThorns(ctx, t, this.thornDeco[i]));
       for (const a of Wd.anchors) this.drawAnchor(ctx, a);
       for (const c of Wd.crates) if (this.vis(c)) this.drawCrate(ctx, c);
       for (const b of Wd.bridges) this.drawBridge(ctx, b, g);
+      for (const c of Wd.critters) this.drawCritter(ctx, c, g.time);
       for (const b of g.beads) this.drawBead(ctx, b);
       this.drawTargets(ctx, g);
       if (g.tetherOn) this.drawTether(ctx, g);
@@ -330,6 +395,29 @@
       sg.addColorStop(0, `rgba(${th.light},1)`); sg.addColorStop(0.04, `rgba(${th.light},0.9)`);
       sg.addColorStop(0.16, `rgba(${th.light},0.35)`); sg.addColorStop(1, `rgba(${th.light},0)`);
       fx.fillStyle = sg; fx.fillRect(0, 0, W, H);
+      if (th.aurora) {
+        // Polarlicht: grüne und violette Schleier, die langsam wogen
+        for (let k = 0; k < 3; k++) {
+          fx.beginPath();
+          for (let x = 0; x <= W; x += 16) {
+            const y = H * (0.18 + k * 0.07) + Math.sin(x * 0.004 + this.t * 0.25 + k * 2) * H * 0.05 + Math.sin(x * 0.011 - this.t * 0.4 + k) * H * 0.02;
+            if (x === 0) fx.moveTo(x, y); else fx.lineTo(x, y);
+          }
+          fx.lineTo(W, 0); fx.lineTo(0, 0); fx.closePath();
+          const ag = fx.createLinearGradient(0, H * 0.05, 0, H * (0.3 + k * 0.07));
+          ag.addColorStop(0, 'rgba(120,80,200,0)'); ag.addColorStop(0.6, `rgba(${k === 1 ? '150,90,220' : '80,255,170'},0.16)`); ag.addColorStop(1, 'rgba(80,255,170,0)');
+          fx.fillStyle = ag; fx.fill();
+        }
+      }
+      if (th.moon) {
+        const mr = H * 0.06;
+        const mg = fx.createRadialGradient(sx, sy, mr * 0.9, sx, sy, mr * 4);
+        mg.addColorStop(0, 'rgba(230,236,255,0.35)'); mg.addColorStop(1, 'rgba(230,236,255,0)');
+        fx.fillStyle = mg; fx.fillRect(sx - mr * 4, sy - mr * 4, mr * 8, mr * 8);
+        fx.fillStyle = '#eef0f6'; fx.beginPath(); fx.arc(sx, sy, mr, 0, TAU); fx.fill();
+        fx.fillStyle = 'rgba(150,150,170,0.25)';
+        for (const [ox, oy, rr] of [[-0.3, -0.2, 0.22], [0.25, 0.1, 0.16], [-0.05, 0.35, 0.12]]) { fx.beginPath(); fx.arc(sx + ox * mr, sy + oy * mr, rr * mr, 0, TAU); fx.fill(); }
+      }
 
       const ground = L.spawn[1];
       const layerY = (worldY, f) => H / 2 + (worldY - cam.y) * sc * f;
@@ -409,6 +497,21 @@
           ctx.lineTo(x - ww * 0.45, yy + h * 0.04); ctx.lineTo(x - ww, yy + h * 0.05);
         }
         ctx.closePath(); ctx.fill();
+      } else if (kind === 'dead') {
+        // Kahler, knorriger Baum: Äste verzweigen sich zweimal
+        ctx.beginPath();
+        ctx.moveTo(x - h * 0.06, y); ctx.quadraticCurveTo(x - h * 0.01, y - h * 0.4, x - h * 0.02, y - h * 0.7);
+        ctx.lineTo(x + h * 0.02, y - h * 0.7); ctx.quadraticCurveTo(x + h * 0.03, y - h * 0.4, x + h * 0.07, y);
+        ctx.fill();
+        ctx.strokeStyle = color; ctx.lineCap = 'round';
+        const branch = (bx, by, ang, len, wd, depth) => {
+          const ex = bx + Math.cos(ang) * len, ey = by + Math.sin(ang) * len;
+          ctx.lineWidth = wd;
+          ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo(bx + Math.cos(ang + 0.4) * len * 0.5, by + Math.sin(ang + 0.4) * len * 0.5, ex, ey); ctx.stroke();
+          if (depth > 0) for (let k = 0; k < 2; k++) branch(ex, ey, ang + (k ? 0.5 : -0.55) + (r(depth * 7 + k + len) - 0.5) * 0.5, len * 0.62, wd * 0.6, depth - 1);
+        };
+        for (let i = 0; i < 4; i++) branch(x, y - h * (0.42 + i * 0.09), -Math.PI / 2 + (i % 2 ? 0.75 : -0.75) + (r(i) - 0.5) * 0.4, h * (0.28 - i * 0.03), h * 0.022, 2);
+        ctx.lineCap = 'butt';
       } else if (kind === 'birch') {
         ctx.fillRect(x - h * 0.018, y - h * 0.85, h * 0.036, h * 0.85);
         ctx.lineWidth = h * 0.012; ctx.strokeStyle = color;
@@ -737,6 +840,89 @@
         ctx.setLineDash([]);
         ctx.globalAlpha = 1;
       }
+    }
+
+    // Eis: hellblaue, glänzende Kappe; dünne Schollen ganz aus Eis
+    drawIce(ctx, r) {
+      const thin = r.h <= 40, h = thin ? r.h : 14;
+      const gr = ctx.createLinearGradient(0, r.y, 0, r.y + h);
+      gr.addColorStop(0, 'rgba(236,246,255,0.95)'); gr.addColorStop(1, thin ? 'rgba(150,190,220,0.9)' : 'rgba(170,205,230,0.5)');
+      ctx.fillStyle = gr;
+      ctx.fillRect(r.x, r.y - 1, r.w, h + 1);
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.fillRect(r.x + 6, r.y + 1.5, r.w * 0.4, 1.5);
+      ctx.fillRect(r.x + r.w * 0.55, r.y + 2.5, r.w * 0.25, 1);
+    }
+
+    drawProp(ctx, pr) {
+      const x = pr.x, y = pr.y, s = pr.s;
+      ctx.save();
+      if (pr.kind === 'pumpkin') {
+        const fl = 0.75 + 0.25 * Math.sin(this.t * 9 + pr.seed * 20) * Math.sin(this.t * 13 + pr.seed * 7);
+        const gl = ctx.createRadialGradient(x, y - 9 * s, 0, x, y - 9 * s, 40 * s);
+        gl.addColorStop(0, `rgba(255,170,60,${0.35 * fl})`); gl.addColorStop(1, 'rgba(255,170,60,0)');
+        ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(x, y - 9 * s, 40 * s, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#c4561c';
+        for (const [ox, rx] of [[-6, 7], [6, 7], [0, 8]]) { ctx.beginPath(); ctx.ellipse(x + ox * s, y - 9 * s, rx * s, 9 * s, 0, 0, TAU); ctx.fill(); }
+        ctx.fillStyle = '#3d4a1e'; ctx.fillRect(x - 1.5 * s, y - 21 * s, 3 * s, 5 * s);
+        ctx.fillStyle = `rgba(255,${200 + 40 * fl | 0},90,${fl})`;
+        ctx.beginPath(); ctx.moveTo(x - 6 * s, y - 13 * s); ctx.lineTo(x - 3 * s, y - 10 * s); ctx.lineTo(x - 8 * s, y - 10 * s); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x + 6 * s, y - 13 * s); ctx.lineTo(x + 3 * s, y - 10 * s); ctx.lineTo(x + 8 * s, y - 10 * s); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x - 7 * s, y - 6 * s); ctx.lineTo(x + 7 * s, y - 6 * s); ctx.lineTo(x + 4 * s, y - 3 * s); ctx.lineTo(x - 4 * s, y - 3 * s); ctx.fill();
+      } else if (pr.kind === 'grave') {
+        ctx.fillStyle = '#5a5560';
+        ctx.beginPath(); ctx.moveTo(x - 10 * s, y); ctx.lineTo(x - 10 * s, y - 22 * s); ctx.arc(x, y - 22 * s, 10 * s, Math.PI, 0); ctx.lineTo(x + 10 * s, y); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(x - 4 * s, y - 24 * s, 8 * s, 1.6 * s); ctx.fillRect(x - 1 * s, y - 28 * s, 2 * s, 10 * s);
+      } else if (pr.kind === 'barrel') {
+        ctx.fillStyle = '#7a3d1c'; ctx.fillRect(x - 9 * s, y - 26 * s, 18 * s, 26 * s);
+        ctx.fillStyle = '#4a2a16'; ctx.fillRect(x - 9 * s, y - 20 * s, 18 * s, 2 * s); ctx.fillRect(x - 9 * s, y - 8 * s, 18 * s, 2 * s);
+        ctx.fillStyle = 'rgba(255,200,140,0.2)'; ctx.fillRect(x - 6 * s, y - 26 * s, 3 * s, 26 * s);
+      } else if (pr.kind === 'tire') {
+        ctx.strokeStyle = '#1b1a19'; ctx.lineWidth = 5 * s;
+        ctx.beginPath(); ctx.ellipse(x, y - 9 * s, 12 * s, 7 * s, 0, 0, TAU); ctx.stroke();
+      } else if (pr.kind === 'berries') {
+        ctx.fillStyle = '#3e5a2a';
+        ctx.beginPath(); ctx.ellipse(x, y - 9 * s, 16 * s, 10 * s, 0, 0, TAU); ctx.fill();
+        for (let i = 0; i < 7; i++) {
+          ctx.fillStyle = i % 3 ? '#b0263a' : '#5a2a6a';
+          ctx.beginPath(); ctx.arc(x + (FF.hash(pr.seed * 50 + i) - 0.5) * 24 * s, y - (4 + FF.hash(pr.seed * 70 + i) * 12) * s, 2.2 * s, 0, TAU); ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+
+    // Krabbe: Panzer, Scheren, trippelnde Beine. Fledermaus: Flügelschlag.
+    drawCritter(ctx, c, t) {
+      const b = FF.critterBox(c, t), x = b.cx;
+      ctx.save();
+      if (c.kind === 'crab') {
+        const y = b.y + b.h, step = Math.sin(t * 22) * 2;
+        ctx.strokeStyle = '#8a2c18'; ctx.lineWidth = 1.6;
+        for (let i = -1; i <= 1; i += 2) for (let k = 0; k < 3; k++) {
+          ctx.beginPath(); ctx.moveTo(x + i * (4 + k * 3), y - 6); ctx.lineTo(x + i * (9 + k * 3), y - 4 + (k % 2 ? step : -step) * 0.4); ctx.lineTo(x + i * (10 + k * 3), y); ctx.stroke();
+        }
+        ctx.fillStyle = '#c84a24';
+        ctx.beginPath(); ctx.ellipse(x, y - 7, 11, 6.5, 0, Math.PI, 0); ctx.fill();
+        ctx.fillRect(x - 11, y - 7, 22, 2);
+        for (let i = -1; i <= 1; i += 2) {
+          ctx.beginPath(); ctx.ellipse(x + i * 13, y - 11 + (i === b.dir ? step * 0.5 : 0), 4.5, 3.5, i * 0.5, 0, TAU); ctx.fill();
+        }
+        ctx.fillStyle = '#fff'; ctx.fillRect(x - 4, y - 15, 2.5, 3); ctx.fillRect(x + 1.5, y - 15, 2.5, 3);
+        ctx.fillStyle = '#111'; ctx.fillRect(x - 3.4 + b.dir * 0.6, y - 14, 1.3, 1.6); ctx.fillRect(x + 2.1 + b.dir * 0.6, y - 14, 1.3, 1.6);
+      } else {
+        const y = b.y + b.h / 2, f = Math.sin(t * 18 + c.id);
+        ctx.fillStyle = '#17121c';
+        for (let i = -1; i <= 1; i += 2) {
+          ctx.beginPath(); ctx.moveTo(x, y);
+          ctx.quadraticCurveTo(x + i * 8, y - 6 - f * 6, x + i * 17, y - 3 - f * 8);
+          ctx.lineTo(x + i * 13, y + 1 - f * 3); ctx.lineTo(x + i * 9, y - 1 - f * 2); ctx.lineTo(x + i * 5, y + 2);
+          ctx.fill();
+        }
+        ctx.beginPath(); ctx.ellipse(x, y, 4, 5, 0, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x - 3, y - 4); ctx.lineTo(x - 2, y - 8); ctx.lineTo(x - 0.5, y - 4); ctx.moveTo(x + 3, y - 4); ctx.lineTo(x + 2, y - 8); ctx.lineTo(x + 0.5, y - 4); ctx.fill();
+        ctx.fillStyle = '#ff5a3a'; ctx.fillRect(x - 2, y - 2, 1.3, 1.3); ctx.fillRect(x + 0.7, y - 2, 1.3, 1.3);
+      }
+      ctx.restore();
     }
 
     drawCrate(ctx, c) {
@@ -1256,7 +1442,13 @@
         }
         x = cam.x - vw / 2 + ((a.x * vw + Math.sin(t * 0.4 * a.s + a.p) * 30 - cam.x * 0.15 * a.z) % vw + vw) % vw;
         y = cam.y - vh / 2 + ((a.y * vh + Math.cos(t * 0.3 * a.s + a.p) * 20 - (kind === 'pollen' ? t * 6 * a.s : 0)) % vh + vh) % vh;
-        if (kind === 'fireflies') {
+        if (kind === 'wisps') {
+          const on = 0.5 + 0.5 * Math.sin(t * 1.1 * a.s + a.p * 3);
+          const c = a.p > 3 ? '255,150,60' : '140,255,170';
+          const gl = ctx.createRadialGradient(x, y, 0, x, y, 14);
+          gl.addColorStop(0, `rgba(${c},${0.75 * on})`); gl.addColorStop(1, `rgba(${c},0)`);
+          ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(x, y, 14, 0, TAU); ctx.fill();
+        } else if (kind === 'fireflies') {
           const on = Math.max(0, Math.sin(t * 1.4 * a.s + a.p * 3));
           const gl = ctx.createRadialGradient(x, y, 0, x, y, 9);
           gl.addColorStop(0, `rgba(255,236,140,${0.8 * on})`); gl.addColorStop(1, 'rgba(255,236,140,0)');

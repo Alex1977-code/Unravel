@@ -34,6 +34,13 @@
     pond: { top: '#efe2a8', wall: '#8c6c4e', wallTex: 'dirt', stone: '#c0b2a0', leaf: '#e6ecb0', recolor: 0.2, grass: ['#545a26', '#c4bc62'] },
     autumn: { top: '#d0a468', wall: '#8e6a52', wallTex: 'dirt', stone: '#a8988a', leaf: '#ff9a4a', recolor: 1, grass: ['#5c4222', '#c8984c'] },
     dusk: { top: '#a2aca0', wall: '#9a8a94', wallTex: 'dirt', stone: '#9a92a0', leaf: '#7e9282', recolor: 1, grass: ['#2c3426', '#6a7a54'] },
+    marsh: { top: '#d8dcc0', wall: '#6e5c48', wallTex: 'dirt', stone: '#a8a294', leaf: '#bccc98', recolor: 0.3, grass: ['#3a4a22', '#8ea052'] },
+    coast: { fog: 0.4, top: '#f2dfb4', wall: '#a8916e', wallTex: 'dirt', topTex: 'dirt', stone: '#c8bca8', leaf: '#a8b890', recolor: 0.4, grass: ['#5a6034', '#c8c080'], grassRate: 0.45 },
+    winter: { top: '#e8eef4', wall: '#8a8a90', wallTex: 'gravel', stone: '#b4b8c0', leaf: '#8a9c90', recolor: 0.6, grass: ['#4a5440', '#a8b49c'], grassRate: 0.6 },
+    scrap: { top: '#d0c09a', wall: '#7a5e48', wallTex: 'dirt', stone: '#a89a88', leaf: '#b0b080', recolor: 0.4, grass: ['#4a4a28', '#a8a060'], grassRate: 0.7 },
+    halloween: { fog: 0.85, top: '#8a8a78', wall: '#6a5a60', wallTex: 'dirt', stone: '#8a8490', leaf: '#5a6048', recolor: 1, grass: ['#262a1c', '#5e6440'] },
+    lighthouse: { fog: 0.7, top: '#9aa08e', wall: '#7a7a7e', wallTex: 'gravel', stone: '#9a9ca2', leaf: '#6a7a6a', recolor: 1, grass: ['#283024', '#6a7458'] },
+    aurora: { fog: 0.65, top: '#e4ecf0', wall: '#7a7e88', wallTex: 'gravel', stone: '#a8b0bc', leaf: '#6a8a80', recolor: 1, grass: ['#2a3a34', '#8aa49a'], grassRate: 0.6 },
   };
 
   // Fototextur in Graustufen mit der Materialfarbe einfärben (k = Anteil, gain = Helligkeitsausgleich)
@@ -101,7 +108,11 @@
     });
   }
 
-  const MOSS = { garden: '0.12, 0.2, 0.05', pond: '0.16, 0.2, 0.06', quarry: '0.14, 0.18, 0.09', autumn: '0.2, 0.18, 0.06', dusk: '' };
+  const MOSS = {
+    garden: '0.12, 0.2, 0.05', pond: '0.16, 0.2, 0.06', quarry: '0.14, 0.18, 0.09', autumn: '0.2, 0.18, 0.06', dusk: '',
+    marsh: '0.1, 0.18, 0.04', coast: '0.4, 0.36, 0.12', winter: '', scrap: '0.2, 0.18, 0.08', halloween: '0.1, 0.14, 0.06', lighthouse: '0.12, 0.16, 0.08', aurora: '',
+  };
+  const NIGHT = new Set(['dusk', 'halloween', 'lighthouse', 'aurora']);
 
   // ------------------------------------------------------------ Faden-Röhre ohne Neuanlage pro Bild
   class RopeMesh {
@@ -414,17 +425,20 @@
       this.tint = TINT[L.theme] || TINT.garden;
       this.level3dTheme = L.theme;
       const scene = (this.scene = new THREE.Scene());
-      scene.fog = new THREE.FogExp2(col(`rgb(${th.haze})`), L.theme === 'quarry' ? 0.00026 : 0.0002);
-      this.renderer.toneMappingExposure = L.theme === 'dusk' ? 1.3 : 1.0;
+      scene.fog = new THREE.FogExp2(col(`rgb(${th.haze})`), (L.theme === 'quarry' ? 0.00026 : 0.0002) * (this.tint.fog || 1));
+      this.renderer.toneMappingExposure = NIGHT.has(L.theme) ? 1.3 : 1.0;
       this.renderer.shadowMap.enabled = this.quality !== 'low';
       const rnd = FF.rng(g.levelIndex * 131 + 7);
       this.q = this.quality === 'high' ? 1 : this.quality === 'medium' ? 0.6 : 0.3;
       this.mats = this.makeMaterials();
+      this.waterMats = [];
       this.buildSkyAndLight(g);
       this.buildTerrain(g, rnd);
       this.buildBackground(g, rnd);
       this.buildProps(g, rnd);
       this.buildPlayers(g);
+      this.buildCritters(g);
+      this.buildThemeProps(g, rnd);
       this.buildPrecip(g, rnd);
       this.wsSnap = true;
       this.buildComposer();
@@ -459,7 +473,9 @@
         if (tn.wallTex === 'gravel') {
           patch(m.wall, 'wallGrey', (sh) => { sh.fragmentShader = recolorChunk(sh.fragmentShader, 0.85, 1.45); });
         }
-        m.top = std({ map: A.grass, normalMap: A.grassN, normalScale: new THREE.Vector2(1.1, 1.1), roughness: 0.95, color: col(tn.top), vertexColors: true });
+        m.top = tn.topTex === 'dirt'
+          ? std({ map: A.dirt, normalMap: A.dirtN, normalScale: new THREE.Vector2(0.7, 0.7), roughness: 0.95, color: col(tn.top), vertexColors: true })
+          : std({ map: A.grass, normalMap: A.grassN, normalScale: new THREE.Vector2(1.1, 1.1), roughness: 0.95, color: col(tn.top), vertexColors: true });
         m.stone = std({ map: A.gravel, normalMap: A.gravelN, normalScale: new THREE.Vector2(1.4, 1.4), roughness: 0.9, color: col(tn.stone) });
         m.wood = std({ map: A.wood, normalMap: A.woodN, roughness: 0.9, color: col('#b4a898') });
         m.leaf = this.foliage(std({ map: A.canopy, alphaTest: 0.42, side: THREE.DoubleSide, roughness: 0.85, color: col(tn.leaf) }), tn.recolor);
@@ -477,6 +493,7 @@
       m.bark = std({ map: T.bark.map, normalMap: T.bark.normal, roughness: 0.95 });
       m.root = std({ color: col(this.th.moss2), roughness: 1 });
       m.metal = std({ color: col('#c2a066'), roughness: 0.35, metalness: 0.8 });
+      m.ice = new THREE.MeshPhysicalMaterial({ color: col('#cfe4f2'), roughness: 0.07, clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 1.5, normalMap: m.waterN, normalScale: new THREE.Vector2(0.15, 0.15) });
       m.twig = std({ color: col('#4a3626'), roughness: 1 });
       const wu = this.wu, moss = MOSS[this.level3dTheme];
       weatherSurface(m.wall, wu, { wet: 0.9, puddle: 0, snow: 0.8 });
@@ -528,11 +545,14 @@
           c0: { value: col(th.sky[0]) }, c1: { value: col(th.sky[1]) }, c2: { value: col(th.sky[2]) },
           sun: { value: this.sunDir }, sunC: { value: col(`rgb(${th.light})`) },
           cloud: { value: 0 }, flash: { value: 0 }, time: this.wu.wTime, snowy: { value: 0 },
+          moon: { value: th.moon ? 1 : 0 }, aur: { value: th.aurora ? 1 : 0 },
+          moonDir: { value: new THREE.Vector3((th.sun[0] - 0.5) * 0.9, 0.2, -1).normalize() },
         },
         vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
         fragmentShader: `
           uniform vec3 c0; uniform vec3 c1; uniform vec3 c2; uniform vec3 sun; uniform vec3 sunC;
           uniform float cloud; uniform float flash; uniform float time; uniform float snowy; varying vec3 vP;
+          uniform float moon; uniform float aur; uniform vec3 moonDir;
           ${NOISE}
           float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 5; i++) { s += wNoise(p) * a; p = p * 2.03 + 11.7; a *= 0.5; } return s; }
           void main(){
@@ -547,8 +567,24 @@
             float cl = smoothstep(0.48 - cloud * 0.25, 0.85, fbm(cp));
             vec3 cc = mix(vec3(1.0, 0.98, 0.95) * (0.9 + 0.3 * (1.0 - cloud)), over * 0.75, cloud);
             c = mix(c, cc, cl * smoothstep(-0.02, 0.15, y) * (0.35 + cloud * 0.55));
+            if (aur > 0.5) {
+              // Polarlicht: wogende grüne Vorhänge mit feinen Strahlen, oben violett
+              float ax = atan(vP.x, -vP.z) * 3.0;
+              float wv = sin(ax * 2.0 + time * 0.12 + fbm(vec2(ax * 1.3, time * 0.03)) * 4.0) * 0.04;
+              float h = smoothstep(0.08, 0.16, y + wv) * smoothstep(0.42, 0.2, y + wv);
+              float cur = smoothstep(0.3, 0.75, fbm(vec2(ax * 5.0 + time * 0.05, 3.0)));
+              float rays = 0.5 + pow(wNoise(vec2(ax * 60.0, time * 0.3)), 2.0);
+              c += (vec3(0.12, 1.0, 0.55) * cur * rays * h + vec3(0.55, 0.2, 0.85) * smoothstep(0.2, 0.32, y + wv) * h * 0.5) * 0.7 * (1.0 - cloud);
+            }
             float s = max(dot(vP, sun), 0.0);
-            c += sunC * (pow(s, 600.0) * 3.0 + pow(s, 24.0) * 0.45 + pow(s, 4.0) * 0.12) * (1.0 - cloud * 0.85);
+            if (moon > 0.5) {
+              float m = max(dot(vP, moonDir), 0.0);
+              float disc = smoothstep(0.99955, 0.99975, m);
+              c = mix(c, vec3(0.93, 0.95, 1.0) * (0.85 + wNoise(vP.xy * 2200.0) * 0.15), disc * (1.0 - cloud * 0.8));
+              c += vec3(0.55, 0.6, 0.8) * (pow(m, 900.0) * 0.6 + pow(m, 40.0) * 0.18) * (1.0 - cloud * 0.6);
+            } else {
+              c += sunC * (pow(s, 600.0) * 3.0 + pow(s, 24.0) * 0.45 + pow(s, 4.0) * 0.12) * (1.0 - cloud * 0.85);
+            }
             c += vec3(0.75, 0.8, 1.0) * flash * 0.9;
             gl_FragColor = vec4(c, 1.0);
           }`,
@@ -557,7 +593,7 @@
       scene.add(sky);
       this.sky = sky;
 
-      const dusk = L.theme === 'dusk';
+      const dusk = NIGHT.has(L.theme);
       const pm = new THREE.PMREMGenerator(this.renderer);
       if (this.A && this.A.hdr) {
         this.env = pm.fromEquirectangular(this.A.hdr).texture;
@@ -669,7 +705,7 @@
           shade(sg, (pp, i) => -pp.getY(i) - r.y);
           parts.push(sg);
         }
-        const wm = new THREE.Mesh(THREE.mergeGeometries(parts), mats.wall);
+        const wm = new THREE.Mesh(THREE.mergeGeometries(parts), r.ice && r.h <= 40 ? mats.ice : mats.wall);
         parts.forEach((x) => x.dispose());
         wm.receiveShadow = true;
         this.scene.add(wm);
@@ -684,21 +720,29 @@
         worldUV(tg, (pp, i) => pp.getX(i), (pp, i) => pp.getZ(i), topScale);
         tg.computeVertexNormals();
         shade(tg, () => 0);
-        const tm = new THREE.Mesh(tg, mats.top);
+        const tm = new THREE.Mesh(tg, r.ice ? mats.ice : mats.top);
         tm.receiveShadow = true;
         this.scene.add(tm);
+        if (r.ice && r.h > 40) {
+          // Eisschicht auf dem Block, vorne als glänzende Kante sichtbar
+          const slab = new THREE.Mesh(new THREE.BoxGeometry(r.w, 9, DEPTH), mats.ice);
+          slab.position.set(r.x + r.w / 2, -r.y - 4, -DEPTH / 2 + 1);
+          slab.receiveShadow = true;
+          this.scene.add(slab);
+        }
       }
 
       // Kleinkram auf und an den Blöcken
-      const tops = S.filter((r) => r.w < 2000);
+      const tops = S.filter((r) => r.w < 2000 && !r.ice);
       const grass = [], stones = [], wallStones = [], pebbles = [], plants = [], litter = [], twigs = [], flowers = [[], [], [], []], stems = [], shrooms = [];
       const g0 = col(tn.grass[0]), g1 = col(tn.grass[1]);
       const theme = this.level3dTheme;
-      const flowerRate = { garden: 1, pond: 0.8, quarry: 0.25, autumn: 0.15, dusk: 0.35 }[theme] || 0.5;
-      const shroomRate = { garden: 0.15, pond: 0.1, quarry: 0.05, autumn: 1, dusk: 0.4 }[theme] || 0.2;
+      const flowerRate = { garden: 1, pond: 0.8, quarry: 0.25, autumn: 0.15, dusk: 0.35, marsh: 0.4, coast: 0.5, winter: 0, scrap: 0.2, halloween: 0.1, lighthouse: 0.15, aurora: 0 }[theme] ?? 0.5;
+      const shroomRate = { garden: 0.15, pond: 0.1, quarry: 0.05, autumn: 1, dusk: 0.4, marsh: 0.5, coast: 0, winter: 0, scrap: 0.1, halloween: 0.8, lighthouse: 0.1, aurora: 0 }[theme] ?? 0.2;
       for (const r of tops) {
         // Grasbüschel: vorne an der Kante dicht, nach hinten lockerer
-        const n = Math.floor((r.w * DEPTH) / 150 * q), nf = Math.floor(r.w / 2.6 * q);
+        const gr = tn.grassRate || 1;
+        const n = Math.floor((r.w * DEPTH) / 150 * q * gr), nf = Math.floor(r.w / 2.6 * q * gr);
         for (let i = 0; i < n + nf; i++) {
           const front = i >= n;
           const z = front ? -1 - rnd() * 12 : -8 - Math.pow(rnd(), 1.5) * (DEPTH - 10);
@@ -924,14 +968,29 @@
       const fuv = far.attributes.uv;
       for (let i = 0; i < fuv.count; i++) fuv.setXY(i, fuv.getX(i) * 140, fuv.getY(i) * 60);
       const farMat = weatherSurface(mats.top.clone(), this.wu, { wet: 0.6, puddle: 0, snow: 1 }); farMat.vertexColors = false; farMat.normalMap = null;
-      this.scene.add(new THREE.Mesh(far, farMat));
+      if (th.sea) {
+        // Küste: schmaler Uferstreifen, dahinter offenes Meer bis zum Horizont
+        const shore = new THREE.PlaneGeometry(L.width + 20000, 800, 1, 1);
+        shore.rotateX(-Math.PI / 2);
+        shore.translate(L.width / 2, ground - 60, -DEPTH - 400);
+        this.scene.add(new THREE.Mesh(shore, farMat));
+        const sea = new THREE.PlaneGeometry(L.width + 30000, 12000, 1, 1);
+        sea.rotateX(-Math.PI / 2);
+        sea.translate(L.width / 2, ground - 75, -DEPTH - 800 - 6000);
+        const suv = sea.attributes.uv;
+        for (let i = 0; i < suv.count; i++) suv.setXY(i, suv.getX(i) * 260, suv.getY(i) * 100);
+        const n = mats.waterN.clone(); n.needsUpdate = true; n.wrapS = n.wrapT = THREE.RepeatWrapping;
+        const seaMat = new THREE.MeshPhysicalMaterial({ color: col(th.water[1]).multiplyScalar(0.7), roughness: 0.08, normalMap: n, normalScale: new THREE.Vector2(0.6, 0.6), envMapIntensity: 1.6, clearcoat: 1, clearcoatRoughness: 0.1 });
+        this.waterMats.push(seaMat);
+        this.scene.add(new THREE.Mesh(sea, seaMat));
+      } else this.scene.add(new THREE.Mesh(far, farMat));
       const back = new THREE.PlaneGeometry(L.width + 20000, 7000, 1, 1);
       back.translate(L.width / 2, ground - 60 - 3500, -DEPTH - 700);
       const buv = back.attributes.uv;
       for (let i = 0; i < buv.count; i++) buv.setXY(i, buv.getX(i) * 80, buv.getY(i) * 28);
       const backMat = mats.wall.clone(); backMat.vertexColors = false; backMat.color = col('#4a4440');
       this.scene.add(new THREE.Mesh(back, backMat));
-      for (const [z, hgt, color, seed] of [[-7000, 2600, th.far, 3], [-4600, 1500, th.far2, 9]]) {
+      for (const [z, hgt, color, seed] of th.sea ? [[-9000, 700, th.far, 3]] : [[-7000, 2600, th.far, 3], [-4600, 1500, th.far2, 9]]) {
         const shape = new THREE.Shape();
         const x0 = -6000, x1 = L.width + 6000;
         shape.moveTo(x0, ground - 400);
@@ -968,6 +1027,28 @@
         tr.computeVertexNormals();
         addGeo(x, tr);
         const clusters = [[bx + bend, by + H, bz, 1]];
+        if (kind === 'dead') {
+          // Kahler Baum: knorrige Äste, die sich zweimal verzweigen, kein Laub
+          const branch = (sx, sy, sz, dir, len, rad, depth) => {
+            const ex = sx + dir.x * len, ey = sy + dir.y * len, ez = sz + dir.z * len;
+            const br = new THREE.CylinderGeometry(rad * 0.55, rad, len * 1.08, 5, 1, true);
+            br.translate(0, len * 0.54, 0);
+            br.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir));
+            br.translate(sx, sy, sz);
+            addGeo(x, br);
+            if (depth <= 0) return;
+            for (let k = 0; k < 2; k++) {
+              const nd = dir.clone().add(new THREE.Vector3((rnd() - 0.5) * 1.3, (rnd() - 0.2) * 0.8, (rnd() - 0.5) * 0.9)).normalize();
+              branch(ex, ey, ez, nd, len * (0.55 + rnd() * 0.2), rad * 0.55, depth - 1);
+            }
+          };
+          for (let b = 0; b < 5; b++) {
+            const y0 = H * (0.45 + b * 0.1), ang = rnd() * Math.PI * 2;
+            const dir = new THREE.Vector3(Math.cos(ang), 0.55 + rnd() * 0.5, Math.sin(ang) * 0.6).normalize();
+            branch(bx + bend * (y0 / H) ** 2, by + y0, bz, dir, H * (0.22 + rnd() * 0.12), H * 0.014, 2);
+          }
+          return;
+        }
         if (kind !== 'pine') {
           for (let b = 0; b < 6; b++) {
             const y0 = H * (0.4 + rnd() * 0.45), ang = rnd() * Math.PI * 2;
@@ -1001,7 +1082,7 @@
         }
       };
       const bands = [[-420, -760, 280, 560, 0.85], [-1000, -1900, 420, 950, 0.6], [-2600, -4000, 550, 1300, 0.4]];
-      for (const [z0, z1, h0, h1, dens] of bands) {
+      for (const [z0, z1, h0, h1, dens] of th.sea ? bands.slice(0, 1).map((b) => [b[0], b[1], b[2], b[3], 0.45]) : bands) {
         const step = 330 / dens;
         for (let x = -900; x < L.width + 900; x += step * (0.6 + rnd() * 0.8)) {
           if (rnd() < 0.2) continue;
@@ -1065,7 +1146,6 @@
     buildProps(g, rnd) {
       const THREE = this.THREE, T = this.tex, th = this.th, W = g.world, mats = this.mats;
       const wood = mats.wood;
-      this.waterMats = [];
       for (const w of W.water) {
         const surf = new THREE.PlaneGeometry(w.w, DEPTH + 6, 1, 1);
         surf.rotateX(-Math.PI / 2);
@@ -1465,6 +1545,217 @@
       return new THREE.MeshPhysicalMaterial({ map: t, roughness: 0.8, sheen: 1, sheenRoughness: 0.5, sheenColor: col('#ffffff'), normalMap: this.tex.yarn.normal });
     }
 
+    // ------------------------------------------------------------ Krabben und Fledermäuse
+    buildCritters(g) {
+      const THREE = this.THREE;
+      const std = (c, r = 0.55, e) => new THREE.MeshStandardMaterial(Object.assign({ color: col(c), roughness: r }, e ? { emissive: col(e) } : {}));
+      const shell = std('#c84a24', 0.45), dark = std('#1c1620', 0.8), white = std('#f4f0e8', 0.3), black = std('#0a0808', 0.2);
+      const eyeRed = std('#ff4a2a', 0.4, '#ff3a1a');
+      const sph = new THREE.SphereGeometry(1, 16, 10);
+      this.critters = g.world.critters.map((c) => {
+        const grp = new THREE.Group();
+        const parts = { grp };
+        if (c.kind === 'crab') {
+          const body = new THREE.Mesh(sph, shell); body.scale.set(11, 5.5, 8); body.position.y = 7;
+          grp.add(body);
+          parts.claws = [-1, 1].map((i) => {
+            const cl = new THREE.Mesh(sph, shell); cl.scale.set(4.6, 3.2, 3.4); cl.position.set(i * 14, 9, 5); grp.add(cl); return cl;
+          });
+          parts.legs = [];
+          const legGeo = new THREE.CylinderGeometry(0.7, 0.5, 9, 5); legGeo.translate(0, -4.5, 0);
+          for (const i of [-1, 1]) for (let k = 0; k < 3; k++) {
+            const lg = new THREE.Mesh(legGeo, shell);
+            lg.position.set(i * (6 + k * 2.5), 6, -3 + k * 3); lg.rotation.z = i * 0.9; grp.add(lg); parts.legs.push(lg);
+          }
+          for (const i of [-1, 1]) {
+            const st = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 4, 4), shell); st.position.set(i * 3, 13, 5); grp.add(st);
+            const e = new THREE.Mesh(sph, white); e.scale.setScalar(1.6); e.position.set(i * 3, 15.5, 5.5); grp.add(e);
+            const pu = new THREE.Mesh(sph, black); pu.scale.setScalar(0.8); pu.position.set(i * 3, 15.5, 6.9); grp.add(pu);
+          }
+        } else {
+          const body = new THREE.Mesh(sph, dark); body.scale.set(4, 5.2, 3.6); grp.add(body);
+          const head = new THREE.Mesh(sph, dark); head.scale.setScalar(3.2); head.position.set(0, 5, 1); grp.add(head);
+          for (const i of [-1, 1]) {
+            const ear = new THREE.Mesh(new THREE.ConeGeometry(1.2, 3.5, 5), dark); ear.position.set(i * 1.8, 8.5, 1); grp.add(ear);
+            const e = new THREE.Mesh(sph, eyeRed); e.scale.setScalar(0.7); e.position.set(i * 1.3, 5.6, 3.8); grp.add(e);
+          }
+          const shape = new THREE.Shape();
+          shape.moveTo(0, 2); shape.quadraticCurveTo(8, 9, 18, 6); shape.lineTo(15, 1); shape.lineTo(12, 3); shape.lineTo(9, -1); shape.lineTo(5, 1); shape.lineTo(1, -2);
+          const wingGeo = new THREE.ShapeGeometry(shape);
+          const wingMat = new THREE.MeshStandardMaterial({ color: col('#241c2a'), roughness: 0.85, side: THREE.DoubleSide });
+          parts.wings = [-1, 1].map((i) => {
+            const piv = new THREE.Group(); piv.position.set(i * 2, 1, 0);
+            const w = new THREE.Mesh(wingGeo, wingMat); w.scale.set(i, 1, 1); piv.add(w); grp.add(piv); return piv;
+          });
+        }
+        grp.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+        this.scene.add(grp);
+        return parts;
+      });
+    }
+
+    poseCritters(g) {
+      g.world.critters.forEach((c, i) => {
+        const P = this.critters[i];
+        if (!P) return;
+        const b = FF.critterBox(c, g.time), t = g.time;
+        if (c.kind === 'crab') {
+          P.grp.position.set(b.cx, -(b.y + b.h), ZP - 2);
+          P.grp.rotation.y = Math.sin(t * 2 + c.id) * 0.15;
+          P.legs.forEach((l, k) => { l.rotation.x = Math.sin(t * 22 + k * 1.7) * 0.35; });
+          P.claws.forEach((cl, k) => { cl.position.y = 9 + Math.sin(t * 6 + k * 3) * 1.2; });
+        } else {
+          P.grp.position.set(b.cx, -(b.y + b.h / 2), ZP);
+          P.grp.rotation.y = b.dir > 0 ? 0.3 : -0.3;
+          const f = Math.sin(t * 18 + c.id);
+          P.wings[0].rotation.z = -f * 0.8; P.wings[1].rotation.z = f * 0.8;
+        }
+      });
+    }
+
+    // ------------------------------------------------------------ Requisiten je Welt
+    // Kürbisse mit leuchtenden Gesichtern und Grabsteine (Halloween), Fässer und Reifen (Schrottplatz),
+    // Beerensträucher (Moor), Leuchtturm mit drehendem Lichtkegel.
+    buildThemeProps(g, rnd) {
+      const THREE = this.THREE, theme = this.level3dTheme, T = this.tex, wu = this.wu;
+      this.pumpkinGlows = []; this.lighthouse = null;
+      const spots = [];
+      for (const r of g.world.solids) {
+        if (r.w > 2000 || r.h < 40 || r.ice) continue;
+        const gapK = theme === 'scrap' ? 0.45 : 1;
+        for (let x = r.x + 40 + rnd() * 100; x < r.x + r.w - 30; x += (70 + rnd() * 160) * gapK) {
+          const front = rnd() < 0.35;
+          if (front && (g.world.anchors.some((a) => Math.abs(a.x - x) < 40) || g.signs.some((sg) => Math.abs(sg.x - x) < 40) ||
+            g.checkpoints.some((c) => Math.abs(c.x - x) < 40) || Math.abs(g.goal.x - x) < 70)) continue;
+          spots.push([x, -r.y, front ? -16 - rnd() * 10 : -40 - Math.pow(rnd(), 1.3) * (DEPTH - 60)]);
+        }
+      }
+      if (theme === 'halloween') {
+        const pumpkins = [], faces = [], graves = [];
+        for (const [x, y, z] of spots) {
+          if (rnd() < 0.62) {
+            const s = 7 + rnd() * 6;
+            pumpkins.push([x, y + s * 0.72, z, 0, (rnd() - 0.5) * 0.5, 0, s, s * 0.82, s]);
+            faces.push([x, y + s * 0.7, z + s * 1.09, 0, 0, 0, s * 1.5, s * 1.2, 1]);
+            if (this.pumpkinGlows.length < 40) {
+              const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.glow, color: col('#ff9a40'), transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending }));
+              h.position.set(x, y + s * 0.7, z + s * 1.2); h.scale.setScalar(s * 7);
+              h.userData.ph = rnd() * 20;
+              this.scene.add(h); this.pumpkinGlows.push(h);
+            }
+          } else {
+            const s = 14 + rnd() * 8;
+            graves.push([x, y - 2, z, (rnd() - 0.5) * 0.12, (rnd() - 0.5) * 0.4, (rnd() - 0.5) * 0.18, s, s, s]);
+          }
+        }
+        // Kürbis: gerippte Kugel mit Stiel
+        const pg = new THREE.SphereGeometry(1, 28, 16);
+        const pp = pg.attributes.position, pc = [];
+        const orange = col('#d0601c'), deep = col('#8a3410');
+        for (let i = 0; i < pp.count; i++) {
+          const x = pp.getX(i), y = pp.getY(i), z = pp.getZ(i);
+          const rib = 1 + Math.cos(Math.atan2(z, x) * 8) * 0.07 * (1 - Math.abs(y));
+          pp.setXYZ(i, x * rib, y, z * rib);
+          const k = (Math.cos(Math.atan2(z, x) * 8) + 1) / 2;
+          const c = deep.clone().lerp(orange, 0.55 + k * 0.45); pc.push(c.r, c.g, c.b);
+        }
+        pg.setAttribute('color', new THREE.Float32BufferAttribute(pc, 3));
+        pg.computeVertexNormals();
+        const stem = new THREE.CylinderGeometry(0.1, 0.16, 0.45, 6); stem.translate(0.05, 1.05, 0);
+        const sc = []; for (let i = 0; i < stem.attributes.position.count; i++) sc.push(0.22, 0.28, 0.1);
+        stem.setAttribute('color', new THREE.Float32BufferAttribute(sc, 3));
+        const pumpkinGeo = THREE.mergeGeometries([pg.toNonIndexed(), stem.toNonIndexed()]);
+        this.instanced(pumpkinGeo, weatherSurface(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, emissive: col('#3a1404') }), wu, { wet: 0.4, puddle: 0, snow: 0.7 }), pumpkins, { cast: true });
+        this.instanced(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: this.pumpkinFace(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), faces, { receive: false });
+        // Grabstein: Platte mit rundem Kopf
+        const slab = new THREE.BoxGeometry(1, 1.1, 0.22); slab.translate(0, 0.55, 0);
+        const head = new THREE.CylinderGeometry(0.5, 0.5, 0.22, 16, 1, false, 0, Math.PI); head.rotateX(Math.PI / 2); head.rotateZ(Math.PI / 2); head.translate(0, 1.1, 0);
+        const graveGeo = THREE.mergeGeometries([slab.toNonIndexed(), head.toNonIndexed()]);
+        this.instanced(graveGeo, weatherSurface(this.mats.stone.clone(), wu, { wet: 1, puddle: 0, snow: 1, moss: '0.1, 0.14, 0.06' }), graves, { cast: true });
+      } else if (theme === 'scrap') {
+        const barrels = [], tires = [];
+        for (const [x, y, z] of spots) {
+          if (rnd() < 0.55) { const s = 8 + rnd() * 3; barrels.push([x, y + s * 1.3, z, (rnd() < 0.2 ? Math.PI / 2 : 0), rnd() * 6.3, 0, s, s, s]); }
+          else { const s = 9 + rnd() * 4; tires.push([x, y + s * 0.42, z, Math.PI / 2 + (rnd() - 0.5) * 0.3, 0, rnd() * 6.3, s, s, s]); }
+        }
+        const bg = new THREE.CylinderGeometry(1, 1, 2.6, 18);
+        const rust = new THREE.MeshStandardMaterial({ color: col('#8a4420'), roughness: 0.75, metalness: 0.45, map: this.tex.rock.map });
+        this.instanced(bg, weatherSurface(rust, wu, { wet: 1, puddle: 0, snow: 1 }), barrels, { cast: true });
+        this.instanced(new THREE.TorusGeometry(1, 0.42, 10, 22), weatherSurface(new THREE.MeshStandardMaterial({ color: col('#1c1b1a'), roughness: 0.9 }), wu, { wet: 1, puddle: 0, snow: 1 }), tires, { cast: true });
+      } else if (theme === 'marsh') {
+        const bushes = [], berries = [];
+        for (const [x, y, z] of spots) {
+          const s = 14 + rnd() * 10;
+          bushes.push([x, y + s * 0.4, z, (rnd() - 0.5) * 0.3, rnd() * 6.3, 0, s, s * 0.8, s]);
+          for (let i = 0; i < 9; i++) {
+            const a = rnd() * 6.3, rr = s * (0.25 + rnd() * 0.25), b = 1 + rnd() * 0.7;
+            berries.push([x + Math.cos(a) * rr, y + s * (0.3 + rnd() * 0.45), z + Math.sin(a) * rr * 0.6 + 2, 0, 0, 0, b, b, b, ...(rnd() < 0.6 ? [0.7, 0.08, 0.12] : [0.3, 0.08, 0.38])]);
+          }
+        }
+        this.instanced(new THREE.PlaneGeometry(1, 1), this.foliage(this.mats.plant.clone(), this.photo ? this.tint.recolor : 0, 1.2), bushes);
+        this.instanced(new THREE.SphereGeometry(1, 10, 8), new THREE.MeshPhysicalMaterial({ color: col('#ffffff'), roughness: 0.25, clearcoat: 0.8 }), berries);
+      } else if (theme === 'lighthouse') {
+        this.buildLighthouse(g, rnd);
+      }
+    }
+
+    pumpkinFace() {
+      if (this.faceTex) return this.faceTex;
+      const THREE = this.THREE, c = document.createElement('canvas');
+      c.width = 128; c.height = 96;
+      const x = c.getContext('2d');
+      x.fillStyle = '#000'; x.fillRect(0, 0, 128, 96);
+      const gr = x.createRadialGradient(64, 50, 4, 64, 50, 60);
+      gr.addColorStop(0, '#fff2a0'); gr.addColorStop(1, '#ff8a20');
+      x.fillStyle = gr;
+      x.beginPath(); x.moveTo(30, 40); x.lineTo(48, 22); x.lineTo(54, 44); x.fill();
+      x.beginPath(); x.moveTo(98, 40); x.lineTo(80, 22); x.lineTo(74, 44); x.fill();
+      x.beginPath(); x.moveTo(60, 50); x.lineTo(68, 50); x.lineTo(64, 58); x.fill();
+      x.beginPath(); x.moveTo(26, 62);
+      for (let i = 0; i <= 8; i++) x.lineTo(26 + i * 9.5, i % 2 ? 70 : 62);
+      x.quadraticCurveTo(64, 92, 26, 62); x.fill();
+      this.faceTex = new THREE.CanvasTexture(c);
+      this.faceTex.colorSpace = THREE.SRGBColorSpace;
+      return this.faceTex;
+    }
+
+    // Leuchtturm auf einem Felsen im Meer, mit zwei Lichtkegeln, die sich drehen
+    buildLighthouse(g) {
+      const THREE = this.THREE, L = g.L;
+      const ground = -(L.spawn[1] + 40);
+      const grp = new THREE.Group();
+      grp.position.set(L.width * 0.62, ground - 70, -2600);
+      const rock = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 2), this.mats.stone);
+      rock.scale.set(260, 120, 200); rock.position.y = 10;
+      grp.add(rock);
+      const tower = new THREE.CylinderGeometry(52, 74, 560, 28, 14);
+      tower.translate(0, 280 + 90, 0);
+      const tc = [], tp = tower.attributes.position;
+      for (let i = 0; i < tp.count; i++) { const band = Math.floor((tp.getY(i) - 90) / 112) % 2; const c = band ? col('#b2281e') : col('#efe9de'); tc.push(c.r, c.g, c.b); }
+      tower.setAttribute('color', new THREE.Float32BufferAttribute(tc, 3));
+      grp.add(new THREE.Mesh(tower, weatherSurface(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6 }), this.wu, { wet: 1, puddle: 0, snow: 0.8 })));
+      const gallery = new THREE.Mesh(new THREE.CylinderGeometry(78, 78, 12, 28), new THREE.MeshStandardMaterial({ color: col('#2a2a2c'), roughness: 0.5, metalness: 0.6 }));
+      gallery.position.y = 656; grp.add(gallery);
+      const lamp = new THREE.Mesh(new THREE.CylinderGeometry(44, 44, 70, 20), new THREE.MeshStandardMaterial({ color: col('#fff4c0'), emissive: col('#ffe8a0'), emissiveIntensity: 2.4, roughness: 0.2 }));
+      lamp.position.y = 698; grp.add(lamp);
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(58, 70, 20), new THREE.MeshStandardMaterial({ color: col('#6a1a14'), roughness: 0.5 }));
+      roof.position.y = 768; grp.add(roof);
+      // Lichtkegel: lange, offene Kegel mit additivem Licht, Spitze an der Lampe
+      const beam = new THREE.Group(); beam.position.y = 698;
+      const cone = new THREE.ConeGeometry(320, 3400, 32, 1, true);
+      cone.translate(0, -1700, 0); cone.rotateZ(Math.PI / 2);
+      const bc = [], bp = cone.attributes.position;
+      for (let i = 0; i < bp.count; i++) { const k = Math.max(0, 1 - bp.getX(i) / 3400); bc.push(k, k * 0.95, k * 0.8); }
+      cone.setAttribute('color', new THREE.Float32BufferAttribute(bc, 3));
+      const bm = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
+      for (const r of [0, Math.PI]) { const m = new THREE.Mesh(cone, bm); m.rotation.y = r; beam.add(m); }
+      grp.add(beam);
+      const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.tex.glow, color: col('#fff0b0'), transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+      halo.position.y = 698; halo.scale.setScalar(420); grp.add(halo);
+      this.scene.add(grp);
+      this.lighthouse = { beam, halo };
+    }
+
     // ------------------------------------------------------------ Wetter-Partikel
     // Regen und Schnee laufen komplett auf der Grafikkarte: Jedes Teilchen hat eine feste Zufallslage, die mit der Zeit
     // fällt und in ein Fenster um die Kamera gefaltet wird. In der Welt verankert, darum stimmt die Bewegung beim Laufen.
@@ -1712,6 +2003,16 @@
       }
       for (; ri < this.ropes.length; ri++) this.ropes[ri].mesh.visible = false;
       g.players.forEach((p, i) => this.poseYarny(this.yarnies[i], p, g, dt));
+      this.poseCritters(g);
+      for (const h of this.pumpkinGlows) h.material.opacity = 0.32 + 0.18 * Math.sin(this.clock * 9 + h.userData.ph) * Math.sin(this.clock * 13 + h.userData.ph * 2);
+      if (this.lighthouse) {
+        const a = this.clock * 0.7;
+        this.lighthouse.beam.rotation.y = a;
+        // Am hellsten, wenn ein Kegel zur Kamera zeigt
+        const face = Math.max(0, Math.sin(a)) ** 6 + Math.max(0, -Math.sin(a)) ** 6;
+        this.lighthouse.halo.scale.setScalar(380 + face * 900);
+        this.lighthouse.halo.material.opacity = 0.45 + face * 0.5;
+      }
       this.posePassenger(g);
 
       if (this.composer) {

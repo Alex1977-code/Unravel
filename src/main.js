@@ -76,6 +76,8 @@
       b.type = 'button';
       b.className = 'btn level-card';
       b.innerHTML = `<span class="num">${i + 1}</span><span><span class="name"></span><br><span class="blurb"></span></span><span class="meta"></span>`;
+      const th = FF.THEMES[L.theme];
+      if (th) b.querySelector('.num').style.background = `linear-gradient(180deg, ${th.sky[0]}, ${th.sky[1]} 55%, ${th.near} 56%, ${th.earth2})`;
       b.querySelector('.name').textContent = L.name;
       b.querySelector('.blurb').textContent = L.blurb;
       b.querySelector('.meta').innerHTML = pr.done

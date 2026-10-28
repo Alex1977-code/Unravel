@@ -179,7 +179,7 @@
     const L = g.players.map((p) => (p.lasso ? [p.anchor ? p.anchor.id : -1, r1(p.lasso.len), r1(p.lasso.total), flat(p.lasso.pts)] : 0));
     const T = g.tether;
     const s = {
-      t: 'st', lv: g.levelIndex, mode: g.mode, act: g.active, st: g.state, stT: r1(g.stateT),
+      t: 'st', lv: g.levelIndex, mode: g.mode, act: g.active, st: g.state, stT: r1(g.stateT), tm: Math.round(g.time * 100) / 100,
       P, L, T: [r1(T.len), r1(T.total), flat(T.pts)],
       cr: g.world.crates.map((c) => [r1(c.x), r1(c.y), c.floating ? 1 : 0, r1(c.strain)]),
       br: g.world.bridges.map((b) => [b.a.id, b.b.id, r1(b.wob), b.owner]),
@@ -196,6 +196,7 @@
   FF.applySnapshot = function (g, s) {
     const W = g.world;
     g.active = s.act; g.state = s.st; g.stateT = s.stT;
+    if (s.tm !== undefined && Math.abs(g.time - s.tm) > 0.25) g.time = s.tm;   // Uhr für Krabben und Fledermäuse
     s.P.forEach((a, i) => {
       const p = g.players[i];
       const jump = p.tx === undefined || Math.hypot(a[0] - p.x, a[1] - p.y) > 90;

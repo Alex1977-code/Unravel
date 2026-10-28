@@ -43,6 +43,20 @@
     return hit;
   };
 
+  // Krabben laufen am Boden hin und her, Fledermäuse fliegen hin und her und wippen dabei.
+  // Die Lage hängt nur von der Spielzeit ab – so sehen Gäste im Online-Spiel dasselbe.
+  FF.critterBox = function (c, t) {
+    const span = Math.max(1, c.x1 - c.x0), ph = (t * c.speed + c.id * 97) / span;
+    const k = ph % 2 < 1 ? ph % 1 : 1 - (ph % 1);
+    const dir = ph % 2 < 1 ? 1 : -1;
+    if (c.kind === 'bat') {
+      const w = 22, h = 12, x = c.x0 + k * span;
+      return { x: x - w / 2, y: c.y + Math.sin(t * 3.1 + c.id) * 7 - h / 2, w, h, dir, cx: x };
+    }
+    const w = 24, h = 13, x = c.x0 + k * span;
+    return { x: x - w / 2, y: c.y - h, w, h, dir, cx: x };
+  };
+
   FF.bridgeY = function (br, x) {
     const x0 = Math.min(br.ax, br.bx), x1 = Math.max(br.ax, br.bx);
     if (x1 - x0 < 8 || x < x0 + 2 || x > x1 - 2) return null;

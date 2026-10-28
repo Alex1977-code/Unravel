@@ -31,7 +31,7 @@
       this.pend = [{}, {}];
       const W = (this.world = {
         time: 0,
-        solids: L.solids.map(([x, y, w, h]) => ({ x, y, w, h })),
+        solids: L.solids.map(([x, y, w, h, ice]) => ({ x, y, w, h, ice: !!ice })),
         oneways: (L.oneways || []).map(([x, y, w]) => ({ x, y, w })),
         water: (L.water || []).map(([x, y, w, h, flow]) => ({ x, y, w, h, flow: flow || 0 })),
         thorns: (L.thorns || []).map(([x, y, w, h]) => ({ x, y, w, h })),
@@ -40,6 +40,7 @@
           x: x - s / 2, y: y - s, w: s, h: s, vx: 0, vy: 0, isCrate: true, heavy: !!heavy, push: {}, strain: 0, floating: false,
         })),
         bridges: [],
+        critters: (L.critters || []).map(([x0, x1, y, kind, speed], id) => ({ x0, x1, y, kind, speed: speed || 50, id })),
       });
       this.beads = (L.beads || []).map(([x, y]) => ({ x, y, got: false, t: 0 }));
       this.checkpoints = (L.checkpoints || []).map(([x, y]) => ({ x, y, on: false }));
@@ -237,7 +238,9 @@
         // Wer nicht festhält, wird vom hängenden Partner mitgezogen.
         const other = this.players[1 - p.id];
         const dragged = !dir && this.tetherOn && this.tether.taut && other.onTether;
-        p.vx = FF.approach(p.vx, target, C.ACC_G * (dragged ? 0.15 : 1) * dt);
+        // Auf Eis greifen die Füße kaum: langsam anlaufen, lange rutschen
+        p.onIce = W.solids.some((s) => s.ice && Math.abs(p.y + p.h - s.y) < 1.5 && p.x + p.w > s.x && p.x < s.x + s.w);
+        p.vx = FF.approach(p.vx, target, C.ACC_G * (dragged ? 0.15 : 1) * (p.onIce ? 0.14 : 1) * dt);
       } else if (hanging) {
         p.vx = FF.clamp(p.vx + dir * C.SWING * dt, -C.SWING_MAX, C.SWING_MAX);
       } else if (!(dir && Math.sign(p.vx) === dir && Math.abs(p.vx) > C.RUN)) {
@@ -490,6 +493,10 @@
         }
         for (const t of W.thorns) {
           if (FF.overlap({ x: p.x + 3, y: p.y + 4, w: p.w - 6, h: p.h - 6 }, t)) return this.die(p, 'thorns');
+        }
+        for (const c of W.critters) {
+          const b = FF.critterBox(c, this.time);
+          if (FF.overlap({ x: p.x + 3, y: p.y + 4, w: p.w - 6, h: p.h - 6 }, b)) return this.die(p, c.kind);
         }
         if (p.y > this.L.height + 80) return this.die(p, 'fall');
         const cy = p.y + p.h / 2;

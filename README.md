@@ -74,13 +74,22 @@ Unter „Grafik“ (Titel und Pause) lässt sich die Stufe wählen: 3D hoch, mit
 
 Musik und Geräusche werden im Browser erzeugt: gezupfte Gitarre (Karplus-Strong), eine Fidel mit Vibrato und ein Bordun, je Level in eigener Tonart. Dazu Wind, Vögel, Wasser, Frösche, Krähen, Grillen und eine Eule, außerdem Schritte, das Knarzen des Fadens beim Klettern und Rauschen beim Schwingen.
 
-## Level
+## Welten
+
+Wie Unravel hat Fadenfreunde 12 Welten (Unravel Two hat 7 Kapitel plus Herausforderungen). Jede bringt eine eigene Stimmung, Musik und automatisches Wetter mit:
 
 1. **Morgengarten**: Laufen, Springen, das erste Lasso und ein Schwung über den Teich.
 2. **Alter Steinbruch**: Festhalten, abseilen, am Faden des Partners hinüberschwingen und nachklettern.
 3. **Am Teich**: Kisten schieben, auf einer treibenden Kiste übersetzen, eine Kiste, die nur zu zweit (oder huckepack) bewegt werden kann.
 4. **Herbstwald**: Mit dem Lasso einen Faden zwischen zwei Pflöcken knoten und ihn als Trampolin nutzen.
 5. **Heimweg**: Lasso-Kette über einen See, Dornengrube mit Faden-Pendel, Trampolin plus hoher Haken.
+6. **Beerenmoor**: Über Tümpel schwingen, auf der Kiste durchs Moor treiben, Beerensträucher, Regen.
+7. **Küstenwind**: Meer bis zum Horizont, Krabben, über die man im richtigen Moment springt, Haken über der Bucht.
+8. **Winterpass**: Eisschollen auf einem See und glatte Wege, auf denen man schwer bremst; Schnee.
+9. **Schrottplatz**: Eine Kiste als Stufe, eine schwere Kiste zu zweit, Gerüstbretter nach oben, Fässer und Reifen.
+10. **Kürbisnacht** (Halloween): Mondnacht mit kahlen Bäumen, Grabsteinen, leuchtenden Kürbissen und Irrlichtern; Fledermäuse, unter denen man nicht springen darf, Dornen.
+11. **Leuchtturm**: Sturmnacht an der Küste, ein Leuchtturm mit kreisendem Lichtkegel, Strömung, Krabben.
+12. **Nordlicht**: Das Finale unter dem Polarlicht – Eis, Trampolin, Abseilen, Lasso-Kette und eine Fledermaus.
 
 ## Aufbau
 

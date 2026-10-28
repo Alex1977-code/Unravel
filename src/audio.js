@@ -12,6 +12,13 @@
     pond: { root: 43, scale: [0, 2, 4, 5, 7, 9, 11], bpm: 90, prog: [0, 4, 5, 3], fiddle: 0.45, drone: 0, amb: ['water', 'birds', 'frogs'] },
     autumn: { root: 52, scale: [0, 2, 3, 5, 7, 9, 10], bpm: 78, prog: [0, 3, 0, 6], fiddle: 0.6, drone: 0.3, amb: ['wind', 'leaves', 'birds'] },
     dusk: { root: 50, scale: [0, 2, 3, 5, 7, 8, 10], bpm: 64, prog: [0, 5, 2, 6], fiddle: 0.7, drone: 0.6, amb: ['wind', 'crickets', 'owl'] },
+    marsh: { root: 48, scale: [0, 2, 3, 5, 7, 9, 10], bpm: 74, prog: [0, 6, 3, 4], fiddle: 0.5, drone: 0.4, amb: ['water', 'frogs', 'birds'] },
+    coast: { root: 50, scale: [0, 2, 4, 5, 7, 9, 10], bpm: 88, prog: [0, 6, 3, 0], fiddle: 0.45, drone: 0.2, amb: ['waves', 'gulls', 'wind'] },
+    winter: { root: 45, scale: [0, 2, 3, 5, 7, 8, 10], bpm: 66, prog: [0, 5, 3, 6], fiddle: 0.6, drone: 0.5, amb: ['wind', 'wind2'] },
+    scrap: { root: 46, scale: [0, 1, 3, 5, 7, 8, 10], bpm: 72, prog: [0, 1, 5, 0], fiddle: 0.4, drone: 0.5, amb: ['wind', 'crows', 'clank'] },
+    halloween: { root: 45, scale: [0, 2, 3, 5, 7, 8, 11], bpm: 70, prog: [0, 5, 4, 0], fiddle: 0.75, drone: 0.65, amb: ['wind', 'owl', 'crickets', 'creak'] },
+    lighthouse: { root: 43, scale: [0, 2, 3, 5, 7, 8, 10], bpm: 68, prog: [0, 5, 6, 4], fiddle: 0.6, drone: 0.55, amb: ['waves', 'wind', 'wind2'] },
+    aurora: { root: 52, scale: [0, 2, 4, 6, 7, 9, 11], bpm: 60, prog: [0, 4, 5, 3], fiddle: 0.65, drone: 0.5, amb: ['wind', 'bells'] },
   };
 
   const audio = {
@@ -98,7 +105,7 @@
       const t = this.ctx.currentTime, a = this.mood.amb;
       this.wind.g.gain.setTargetAtTime(a.includes('wind') ? 0.22 : 0.06, t, 1.5);
       this.wind2.g.gain.setTargetAtTime(a.includes('wind2') ? 0.5 : 0, t, 1.5);
-      this.water.g.gain.setTargetAtTime(a.includes('water') ? 0.32 : 0, t, 1.5);
+      this.water.g.gain.setTargetAtTime(a.includes('water') || a.includes('waves') ? 0.32 : 0, t, 1.5);
     },
 
     // ---------------------------------------------------------- Bausteine
@@ -293,6 +300,20 @@
       if (a.includes('owl') && due('owl', 14, 30)) { this.tone(380, 0.5, 'sine', 0.05, 0.92, t, this.ambBus); this.tone(360, 0.8, 'sine', 0.05, 0.9, t + 0.7, this.ambBus); }
       if (a.includes('leaves') && due('leaves', 1.5, 4)) this.noise(0.6 + Math.random() * 0.6, 3500, 0.05, 0.5, 0.7, t, 'highpass', this.ambBus, pan());
       if (a.includes('water') && due('lap', 1.2, 3)) this.noise(0.5, 700, 0.08, 0.8, 0.5, t, 'lowpass', this.ambBus, pan());
+      // Brandung: Wellen rollen heran und ziehen sich zurück
+      if (a.includes('waves')) {
+        const sw = 0.5 + 0.5 * Math.sin(t * 0.55) * Math.sin(t * 0.21 + 1);
+        this.water.g.gain.setTargetAtTime(0.12 + sw * 0.42, t, 0.6);
+        this.water.f.frequency.setTargetAtTime(380 + sw * 700, t, 0.6);
+      }
+      if (a.includes('gulls') && !quiet && due('gulls', 4, 11)) {
+        const p = pan(), f = 1300 + Math.random() * 400;
+        for (let i = 0; i < 2 + Math.floor(Math.random() * 3); i++) this.tone(f * (1 - i * 0.04), 0.22, 'triangle', 0.03, 0.7, t + i * 0.26, this.ambBus);
+        void p;
+      }
+      if (a.includes('clank') && due('clank', 5, 12)) { const f = 600 + Math.random() * 900; this.tone(f, 0.9, 'sine', 0.025, 0.995, t, this.ambBus); this.tone(f * 2.76, 0.5, 'sine', 0.012, 1, t, this.ambBus); }
+      if (a.includes('creak') && due('creakAmb', 6, 14)) { this.tone(110 + Math.random() * 40, 1.2, 'sawtooth', 0.008, 1.6, t, this.ambBus); }
+      if (a.includes('bells') && due('bells', 3, 7)) { const f = mtof(this.mood.root + 24 + [0, 4, 7, 11, 14][Math.floor(Math.random() * 5)]); this.bell(f, t, 0.03); }
     },
 
     chirp(f, t, pan) {

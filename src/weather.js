@@ -12,9 +12,14 @@
     rain: { rain: 0.6, snow: 0, cover: 0, wet: 1, wind: 0.6, cloud: 0.75, light: 0.55, fog: 1.45, bolt: 0 },
     storm: { rain: 1, snow: 0, cover: 0, wet: 1, wind: 1.6, cloud: 1, light: 0.38, fog: 1.7, bolt: 1 },
     snow: { rain: 0, snow: 1, cover: 1, wet: 0, wind: 0.4, cloud: 0.6, light: 0.8, fog: 1.6, bolt: 0 },
+    // Klarer Frost: Schneedecke, nur vereinzelte Flocken, freier Himmel (für das Polarlicht)
+    frost: { rain: 0, snow: 0.18, cover: 1, wet: 0, wind: 0.25, cloud: 0, light: 0.9, fog: 1.1, bolt: 0 },
   };
-  const AUTO = { garden: 'sun', quarry: 'rain', pond: 'sun', autumn: 'storm', dusk: 'snow' };
-  const NAMES = { auto: 'Automatisch', sun: 'Sonne', rain: 'Regen', storm: 'Sturm', snow: 'Schnee' };
+  const AUTO = {
+    garden: 'sun', quarry: 'rain', pond: 'sun', autumn: 'storm', dusk: 'snow',
+    marsh: 'rain', coast: 'sun', winter: 'snow', scrap: 'sun', halloween: 'sun', lighthouse: 'storm', aurora: 'frost',
+  };
+  const NAMES = { auto: 'Automatisch', sun: 'Sonne', rain: 'Regen', storm: 'Sturm', snow: 'Schnee', frost: 'Frost' };
   FF.WEATHER_ORDER = ['auto', 'sun', 'rain', 'storm', 'snow'];
   FF.WEATHER_NAMES = NAMES;
   FF.weatherOf = (theme, pref) => (pref && pref !== 'auto' && W[pref] ? pref : AUTO[theme] || 'sun');

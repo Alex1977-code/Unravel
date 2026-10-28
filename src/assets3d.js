@@ -7,7 +7,10 @@
   const FF = globalThis.FF;
   const cache = {};
 
-  const HDRI = { garden: 'forest', quarry: 'forest', pond: 'sunset', autumn: 'sunrise', dusk: 'night' };
+  const HDRI = {
+    garden: 'forest', quarry: 'forest', pond: 'sunset', autumn: 'sunrise', dusk: 'night',
+    marsh: 'forest', coast: 'sunrise', winter: 'sunrise', scrap: 'sunset', halloween: 'night', lighthouse: 'night', aurora: 'night',
+  };
 
   function url(p) {
     if (FF.ASSET_DATA && FF.ASSET_DATA[p]) return FF.ASSET_DATA[p];
@@ -60,6 +63,6 @@
   FF.ASSET_FILES = [
     'tex/grass.jpg', 'tex/grass_n.jpg', 'tex/dirt.jpg', 'tex/dirt_n.jpg', 'tex/gravel.jpg', 'tex/gravel_n.jpg',
     'tex/wood.jpg', 'tex/wood_n.jpg', 'tex/canopy.png', 'tex/water_n.jpg',
-    ...Object.values(HDRI).map((n) => 'hdri/' + n + '.exr'),
+    ...[...new Set(Object.values(HDRI))].map((n) => 'hdri/' + n + '.exr'),
   ];
 })();
