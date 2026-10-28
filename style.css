@@ -152,7 +152,7 @@ kbd {
 
 /* ---------- HUD ---------- */
 #hud {
-  position: fixed; left: 0; right: 0; top: 0;
+  position: fixed; left: 0; right: 0; top: 0; z-index: 10;
   display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;
   padding: max(12px, env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px)) 0 max(14px, env(safe-area-inset-left, 0px));
   pointer-events: none;
@@ -180,7 +180,7 @@ kbd {
 .hud-btn:focus-visible { outline: 2px dashed var(--gold); outline-offset: 2px; }
 
 #toasts {
-  position: fixed; left: 50%; top: max(64px, calc(env(safe-area-inset-top, 0px) + 52px));
+  position: fixed; z-index: 11; left: 50%; top: max(64px, calc(env(safe-area-inset-top, 0px) + 52px));
   transform: translateX(-50%);
   display: flex; flex-direction: column; gap: 6px; align-items: center;
   pointer-events: none; width: min(92vw, 520px);
@@ -196,29 +196,116 @@ kbd {
 .toast.blue { border-left: 5px solid var(--wool-blue); }
 @keyframes toast { 0% { opacity: 0; transform: translateY(-6px); } 8%, 82% { opacity: 1; transform: none; } 100% { opacity: 0; } }
 
-/* ---------- Touch ---------- */
-#touch { position: fixed; inset: 0; pointer-events: none; }
-.tpad { position: absolute; display: flex; gap: 10px; pointer-events: auto; }
-.tpad.left { left: max(14px, env(safe-area-inset-left, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px)); }
-.tpad.right {
-  right: max(14px, env(safe-area-inset-right, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px));
-  display: grid; grid-template-columns: 64px 76px; grid-template-rows: auto auto auto; gap: 8px; align-items: end;
+/* ---------- Touch: Joystick links, Knöpfe rechts ---------- */
+#touch { position: fixed; inset: 0; z-index: 5; }
+.touchpad { position: absolute; inset: 0; display: flex; pointer-events: none; }
+.tp-zone { position: relative; flex: 1 1 50%; pointer-events: auto; touch-action: none; }
+.tp-base {
+  position: absolute; left: 21%; top: 72%;
+  width: 124px; height: 124px; margin: -62px 0 0 -62px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(240,231,211,0.10), rgba(240,231,211,0.04));
+  box-shadow: inset 0 0 0 2px rgba(240,231,211,0.28);
+  opacity: 0.55; transition: opacity 0.15s;
 }
-.tpad.right .big { grid-column: 2; grid-row: 2 / span 2; height: 108px; }
-.tpad.right .mid { grid-column: 1; grid-row: 3; }
-.tpad.right .small:nth-child(1) { grid-column: 1; grid-row: 2; }
-.tpad.right .small:nth-child(2) { grid-column: 2; grid-row: 1; }
-.tpad.top { right: max(14px, env(safe-area-inset-right, 0px)); top: max(64px, calc(env(safe-area-inset-top, 0px) + 56px)); }
-.tpad button {
-  min-width: 58px; height: 58px; border-radius: 16px; border: 0;
-  background: rgba(20, 16, 22, 0.38); color: var(--linen);
-  font: 800 20px var(--body);
-  box-shadow: inset 0 0 0 2px rgba(240, 231, 211, 0.3);
-  touch-action: none;
+.tp-base.on { opacity: 1; transition: none; }
+.tp-knob {
+  position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%;
+  background: rgba(240,231,211,0.42); box-shadow: 0 4px 14px rgba(0,0,0,0.35);
 }
-.tpad button.small { font-size: 12px; height: 44px; padding: 0 10px; }
-.tpad button.mid { font-size: 14px; }
-.tpad button.on { background: rgba(240, 231, 211, 0.5); }
+.tp-buttons {
+  flex: 0 0 auto; align-self: flex-end; pointer-events: auto;
+  display: grid; gap: 10px;
+  grid-template-columns: 74px 92px; grid-template-areas: "swap merge" "knot jump" "grip jump" "lasso jump";
+  padding: 0 max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) 0;
+}
+.tb {
+  border: 0; border-radius: 18px; min-height: 58px;
+  background: rgba(20,16,22,0.42); color: var(--linen);
+  font: 800 14px var(--body); letter-spacing: 0.01em;
+  box-shadow: inset 0 0 0 2px rgba(240,231,211,0.28);
+  touch-action: none; -webkit-user-select: none; user-select: none;
+}
+.tb.on { background: rgba(240,231,211,0.45); color: var(--ink); }
+.tb-jump { grid-area: jump; border-radius: 50%; width: 92px; height: 92px; align-self: end; font-size: 16px; background: rgba(212,70,47,0.55); }
+.tb-lasso { grid-area: lasso; }
+.tb-grip { grid-area: grip; }
+.tb-knot { grid-area: knot; }
+.tb-swap { grid-area: swap; }
+.tb-merge { grid-area: merge; }
+.tb-small { min-height: 42px; font-size: 12px; }
+
+#rotate { display: none; }
+@media (orientation: portrait) and (pointer: coarse) {
+  body.playing #rotate {
+    display: grid; place-items: center; position: fixed; inset: 0; z-index: 30;
+    background: rgba(12,10,16,0.88); color: var(--linen); text-align: center; padding: 24px;
+  }
+  #rotate div { display: grid; gap: 8px; }
+  #rotate b { font: italic 800 30px var(--display); }
+}
+
+/* ---------- Handy als Controller ---------- */
+#padui { position: fixed; inset: 0; z-index: 20; background: radial-gradient(120% 90% at 50% 0%, #26352f, var(--night)); display: flex; flex-direction: column; }
+.pad-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: max(10px, env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px)) 10px max(14px, env(safe-area-inset-left, 0px));
+}
+.pad-who { padding: 6px 14px; border-radius: 99px; background: var(--moss); font: italic 800 18px var(--display); color: #fff; }
+.pad-status { flex: 1; font-weight: 800; font-size: 13px; opacity: 0.75; }
+.pad-mini { width: 42px; height: 42px; border: 0; border-radius: 50%; background: rgba(240,231,211,0.14); color: var(--linen); font: 800 15px var(--body); }
+#pad-touch { position: relative; flex: 1; }
+#pad-touch .tp-base { opacity: 0.8; }
+#pad-nav { flex: 1; display: grid; place-content: center; gap: 16px; text-align: center; padding: 16px; }
+#pad-nav p { margin: 0; font-weight: 800; opacity: 0.8; }
+.pad-nav-grid { display: grid; grid-template-columns: repeat(2, minmax(110px, 1fr)); gap: 12px; }
+.pad-nav-grid button {
+  height: 74px; border: 0; border-radius: 18px; font: 800 22px var(--body);
+  background: rgba(240,231,211,0.16); color: var(--linen); box-shadow: inset 0 0 0 2px rgba(240,231,211,0.25);
+}
+.pad-nav-grid .ok { background: var(--wool-red); }
+.pad-nav-grid .back { font-size: 16px; }
+
+/* ---------- Online, Raum, Fernseher, Controller ---------- */
+.menu-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.menu-row > .btn { flex: 1 1 140px; }
+h3.sub { margin-top: 18px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.join-row { margin: 0 0 10px; }
+.code-input {
+  width: 100%; padding: 12px 16px; border-radius: 10px; border: 2px dashed rgba(38,29,27,0.35);
+  background: #fffaf0; color: var(--ink);
+  font: italic 800 34px var(--display); letter-spacing: 0.3em; text-align: center; text-transform: uppercase;
+}
+.code-input:focus-visible { outline: 3px dashed var(--gold); outline-offset: 3px; }
+.panel.lobby { width: min(820px, 100%); }
+.lobby-grid { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.lobby-code { display: grid; gap: 8px; justify-items: center; text-align: center; }
+.lobby-code .lbl { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: #6d5d4f; font-weight: 800; }
+.lobby-code strong { font: italic 800 56px/1 var(--display); letter-spacing: 0.12em; color: var(--wool-red); }
+.qr { width: min(220px, 60vw); aspect-ratio: 1; max-width: 100%; background: #fff; border-radius: 10px; padding: 6px; }
+.qr svg { width: 100%; height: 100%; display: block; }
+.link { font-size: 11px; word-break: break-all; color: #5a4b42; }
+.btn.small { padding: 8px 14px; font-size: 14px; }
+.slots { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 8px; }
+.slots li { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; background: rgba(38,29,27,0.07); font-weight: 600; }
+.slots li b { min-width: 42px; }
+.slots li.on { background: rgba(61,122,59,0.16); }
+.tips { margin: 0 0 12px; padding-left: 18px; display: grid; gap: 8px; font-size: 14px; line-height: 1.45; color: #4a3d36; }
+.padlist { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 10px; }
+.padlist li { padding: 10px 12px; border-radius: 10px; background: rgba(38,29,27,0.07); display: grid; gap: 8px; }
+.padlist li.active { box-shadow: inset 0 0 0 2px var(--gold); }
+.padlist li.empty { font-weight: 600; color: #6d5d4f; }
+.pad-name { font-weight: 800; font-size: 14px; }
+.pad-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 0; border-radius: 99px; padding: 6px 12px; font: 800 13px var(--body); background: #fffaf0; color: var(--ink); box-shadow: inset 0 0 0 1px #d3c6aa; cursor: pointer; }
+.chip.sel { background: var(--ink); color: var(--linen); }
+.chip:focus-visible { outline: 2px dashed var(--gold); outline-offset: 2px; }
+
+/* Fernsehmodus: größere Schrift, aus der Entfernung lesbar */
+body.tv .panel { width: min(1100px, 100%); font-size: 1.2em; }
+body.tv .lobby-code strong { font-size: 96px; }
+body.tv .qr { width: 280px; }
+body.tv .hud-chip { font-size: 18px; }
 
 @media (max-width: 520px) {
   .lede { font-size: 15px; }
@@ -229,9 +316,15 @@ kbd {
   dl { grid-template-columns: 1fr; gap: 2px 0; }
   dd { margin-bottom: 6px; }
   #scr-title { align-items: flex-end; }
+  .lobby-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-height: 520px) {
+  .tb { min-height: 48px; font-size: 13px; }
+  .tb-jump { width: 80px; height: 80px; }
+  .tp-buttons { grid-template-columns: 66px 80px; gap: 8px; }
+  .lobby-code strong { font-size: 40px; }
+  .qr { width: 150px; }
   .panel { padding: 18px 22px 18px; }
   .logo { font-size: 40px; }
   .thread { height: 16px; margin: 2px 0; }
@@ -248,4 +341,20 @@ kbd {
   .thread path { animation: none; stroke-dashoffset: 0; }
   .toast { animation-duration: 4s; }
   .btn { transition: none; }
+}
+
+/* Handy-Controller: größere Knöpfe, Joystick nicht am Rand abgeschnitten */
+.tp-base { left: max(84px, 21%); }
+#pad-touch .tb { min-height: 72px; font-size: 16px; }
+#pad-touch .tb-jump { width: 116px; height: 116px; }
+#pad-touch .tp-buttons { grid-template-columns: 96px 116px; gap: 14px; }
+#pad-touch .tp-zone::after {
+  content: "Joystick: links irgendwo ziehen"; position: absolute; left: 16px; top: 16px;
+  font-size: 13px; font-weight: 800; color: rgba(240,231,211,0.45);
+}
+@media (orientation: portrait) {
+  #pad-touch .touchpad { flex-direction: column; }
+  #pad-touch .tp-zone { flex: 1 1 55%; }
+  #pad-touch .tp-buttons { align-self: center; padding: 0 16px max(20px, env(safe-area-inset-bottom, 0px)); }
+  #pad-touch .tp-base { left: 50%; top: 55%; }
 }

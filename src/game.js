@@ -93,7 +93,7 @@
 
     // ---------------------------------------------------------------- Ablauf
     frame(dt, ctls) {
-      dt = Math.min(dt, 0.05);
+      dt = Math.min(dt, 0.1);
       this.time += dt;
       for (let i = 0; i < 2; i++) for (const k of EDGES) if (ctls[i][k]) this.pend[i][k] = 1;
       this.ctls = ctls;
@@ -324,7 +324,10 @@
           p.grounded = false; p.bridge.wob = 1; p.bridge = null;
           sfx('boing', 0.6);
         } else {
-          if (!wasGrounded && fallSpeed > 260) { p.landT = 0.18; sfx('land', Math.min(1, fallSpeed / 700)); this.dust(p); }
+          if (!wasGrounded && fallSpeed > 260) {
+            p.landT = 0.18; sfx('land', Math.min(1, fallSpeed / 700)); this.dust(p);
+            if (fallSpeed > 520) this.events.push({ type: 'fb', who: p.id, s: 0.5, ms: 80 });
+          }
           p.vy = 0;
           if (!p.bridge && prevBridge && wasGrounded) p.bridge = null;
         }
@@ -411,6 +414,7 @@
       p.anchor = a;
       p.throwT = 0; p.miss = null;
       sfx('lasso');
+      this.events.push({ type: 'fb', who: p.id, s: 0.35, ms: 60 });
     }
 
     releaseLasso(p, boost) {
@@ -492,6 +496,7 @@
         for (const b of this.beads) {
           if (!b.got && Math.hypot(b.x - cx, b.y - cy) < 20) {
             b.got = true; b.t = 0; sfx('bead');
+            this.events.push({ type: 'fb', who: p.id, s: 0.2, ms: 40 });
             this.sparkle(b.x, b.y);
           }
         }
@@ -526,6 +531,7 @@
       if (why === 'water') { this.splash(p.x + p.w / 2, w.y, 1.4); sfx('splash'); }
       else sfx('ouch');
       this.deadId = p.id; this.deathWhy = why;
+      this.events.push({ type: 'fb', who: 0, s: 0.9, ms: 260 }, { type: 'fb', who: 1, s: 0.9, ms: 260 });
     }
 
     respawn() {

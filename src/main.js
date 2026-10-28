@@ -1,38 +1,61 @@
 'use strict';
-// Menüs, HUD, Hauptschleife.
+// Menüs, HUD, Netzwerkrollen und Hauptschleife.
 (function () {
   const FF = globalThis.FF;
   const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
   const cv = $('#game');
   const R = new FF.Renderer(cv);
   const input = new FF.Input();
-  const coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
-  if (coarse) input.device = 'touch';
-  R.keyLabels = (mode) => input.labels(mode);
+  const params = new URLSearchParams(location.search);
+  const isTouch = (typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window;
+  if (isTouch) { input.device = 'touch'; document.body.classList.add('touch'); }
+  R.keyLabels = (m) => input.labels(net && net.role === 'guest' ? 'solo' : m);
 
   let screen = 'title';
   let mode = 'solo';
   let game = null;
   let returnTo = 'title';
+  // net: null | { role: 'host', host, tv, slots } | { role: 'guest', client, slot } | { role: 'pad', client, slot }
+  let net = null;
   const demo = new FF.Game(0, 'coop');
-  const isTouch = (typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window;
+  const idle = [FF.makeCtl(), FF.makeCtl()];
+  const NAMES = ['Rot', 'Blau'];
 
   const progress = FF.store.get('progress', {});
   const saveProgress = () => FF.store.set('progress', progress);
 
+  // Lokaler Touch-Joystick
+  const touchPad = new FF.TouchPad($('#touch'));
+
   // ------------------------------------------------------------ Bildschirme
-  const screens = ['title', 'levels', 'help', 'pause', 'win'];
+  const screens = ['title', 'levels', 'help', 'pause', 'win', 'online', 'lobby', 'tv', 'pads', 'guest'];
   function show(name) {
     screen = name;
     for (const s of screens) $('#scr-' + s).hidden = s !== name;
     const inGame = name === 'play' || name === 'pause' || name === 'win';
     $('#hud').hidden = !inGame;
-    $('#touch').hidden = !(name === 'play' && (isTouch || input.device === 'touch'));
+    document.body.classList.toggle('playing', name === 'play');
+    $$('.host-only').forEach((el) => (el.hidden = !!(net && net.role === 'guest')));
+    updateTouch();
     input.captureGame = name === 'play';
     if (name !== 'play') {
-      const first = document.querySelector('#scr-' + name + ' .btn');
-      if (first) setTimeout(() => first.focus({ preventScroll: true }), 30);
+      const first = document.querySelector('#scr-' + name + ' [data-default]') || document.querySelector('#scr-' + name + ' .btn:not([hidden])');
+      if (first && !isTouch) setTimeout(() => first.focus({ preventScroll: true }), 30);
     } else if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    if (name === 'pads') renderPadList(true);
+    if (net && net.role === 'host') {
+      net.host.broadcast({ t: 'screen', name, lv: game ? game.levelIndex : -1, mode });
+      if (name === 'lobby') renderLobby();
+    }
+  }
+
+  function updateTouch() {
+    const want = screen === 'play' && (isTouch || input.device === 'touch') && !(net && net.tv);
+    $('#touch').hidden = !want;
+    touchPad.setSolo(mode === 'solo');
+    if (want) input.setVirtual('touch', 0, touchPad.state);
+    else { input.setVirtual('touch', null); touchPad.reset(); }
   }
 
   function buildLevels() {
@@ -60,13 +83,22 @@
   function startLevel(i) {
     FF.audio.init();
     game = new FF.Game(i, mode);
+    if (net && net.role === 'host') {
+      FF.recordGame(game);
+      net.host.broadcast({ t: 'start', lv: i, mode });
+    }
+    enterLevel(i);
+    if (isTouch && !(net && net.tv)) goFullscreen(true);
+    if (i === 0 && !net) toast(mode === 'solo' ? 'Du trägst deinen Partner huckepack.' : 'Rot spielt links, Blau rechts.');
+  }
+
+  function enterLevel(i) {
+    FF.audio.setMood(FF.LEVELS[i].theme);
     R.snap = true;
     $('#toasts').textContent = '';
     $('#hud-level').textContent = `${i + 1} · ${FF.LEVELS[i].name}`;
-    document.querySelectorAll('.solo-only').forEach((el) => (el.hidden = mode !== 'solo'));
     show('play');
     updateHud(true);
-    if (i === 0) toast(mode === 'solo' ? 'Du trägst deinen Partner huckepack.' : 'Rot spielt links, Blau rechts.');
   }
 
   function toast(text, who) {
@@ -86,11 +118,12 @@
     let who = '';
     if (game.mode === 'solo') {
       const a = game.players[game.active], o = game.players[1 - game.active];
-      const nm = (id) => (id === 0 ? 'Rot' : 'Blau');
-      who = o.merged ? `${nm(a.id)} trägt ${nm(o.id)}` : `Du spielst ${nm(a.id)}`;
-      who += '|' + a.id;
-    }
-    const key = beads + who;
+      who = (o.merged ? `${NAMES[a.id]} trägt ${NAMES[o.id]}` : `Du spielst ${NAMES[a.id]}`) + '|' + a.id;
+    } else if (net && net.role === 'guest') who = `Du spielst ${NAMES[net.slot]}|${net.slot}`;
+    let netTxt = '';
+    if (net && net.role === 'host') netTxt = `Raum ${net.host.code} · ${net.host.count} verbunden`;
+    if (net && net.role === 'guest') netTxt = net.client.rtt ? `Online · ${Math.round(net.client.rtt)} ms` : 'Online';
+    const key = beads + who + netTxt;
     if (!force && key === hudCache) return;
     hudCache = key;
     $('#hud-beads').textContent = beads;
@@ -101,14 +134,28 @@
       w.innerHTML = `<span class="who-dot" style="background:${FF.COLORS[+id]}"></span>`;
       w.appendChild(document.createTextNode(txt));
     }
+    $('#hud-net').hidden = !netTxt;
+    $('#hud-net').textContent = netTxt;
   }
 
+  // Ereignisse aus dem Spiel: Hinweise, Sieg, Vibration
+  const outToasts = [];
   function handleEvents() {
     for (const e of game.events) {
-      if (e.type === 'toast') toast(e.text, e.who);
+      if (e.type === 'toast') { toast(e.text, e.who); outToasts.push([e.text, e.who]); }
       if (e.type === 'won') onWin();
+      if (e.type === 'fb') feedback(e.who, e.s, e.ms);
     }
     game.events.length = 0;
+  }
+
+  function feedback(who, s, ms) {
+    const slot = mode === 'solo' ? 0 : who;
+    if (net && net.role === 'host') {
+      const occ = net.slots[slot];
+      if (occ && occ.kind === 'remote') { net.host.send(occ.info, { t: 'rumble', s, ms }); return; }
+    }
+    input.rumble(slot, s, ms);
   }
 
   function onWin() {
@@ -119,129 +166,515 @@
     saveProgress();
     setTimeout(() => {
       if (screen !== 'play' || !game || game.state !== 'won') return;
-      const last = i === FF.LEVELS.length - 1;
-      $('#win-title').textContent = last ? 'Endlich zu Hause!' : 'Geschafft!';
-      $('#win-text').textContent = last
-        ? `Ihr habt den ganzen Weg gemeinsam gemeistert. ${game.beadsGot()} von ${game.beads.length} Funken im letzten Level gesammelt.`
-        : `„${L.name}“ liegt hinter euch. ${game.beadsGot()} von ${game.beads.length} Funken gesammelt.`;
-      $('#btn-next').hidden = last;
+      showWin(i, game.beadsGot(), game.beads.length);
       show('win');
     }, 1300);
   }
+
+  function showWin(i, got, total) {
+    const last = i === FF.LEVELS.length - 1;
+    $('#win-title').textContent = last ? 'Endlich zu Hause!' : 'Geschafft!';
+    let text = last
+      ? `Ihr habt den ganzen Weg gemeinsam gemeistert. ${got} von ${total} Funken im letzten Level gesammelt.`
+      : `„${FF.LEVELS[i].name}“ liegt hinter euch. ${got} von ${total} Funken gesammelt.`;
+    if (net && net.role === 'guest') text += ' Rot wählt, wie es weitergeht.';
+    $('#win-text').textContent = text;
+    $('#btn-next').hidden = last;
+  }
+
+  // ------------------------------------------------------------ Vollbild
+  function goFullscreen(auto) {
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      if (!auto) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      return;
+    }
+    if (!req) { if (!auto) toast('Auf dem iPhone: Teilen → „Zum Home-Bildschirm“ für Vollbild.'); return; }
+    Promise.resolve(req.call(el)).then(() => {
+      if (screen.orientation && screen.orientation.lock && isTouch) screen.orientation.lock('landscape').catch(() => {});
+    }).catch(() => {});
+  }
+
+  // ------------------------------------------------------------ Online: Gastgeber
+  async function openRoom(tv, code) {
+    closeNet();
+    const host = new FF.NetHost({
+      assignSlot: (info) => {
+        const order = tv ? [0, 1] : [1];
+        for (const s of order) if (!net.slots[s]) { net.slots[s] = { kind: 'remote', info }; return s; }
+        return null;
+      },
+      onJoin: (info) => {
+        const kind = info.role === 'pad' ? 'Handy-Controller' : 'eigener Bildschirm';
+        toast(`${NAMES[info.slot]} ist dabei (${kind})`, info.slot);
+        if (screen === 'lobby') renderLobby();
+        // Nachzügler mitten im Spiel abholen
+        host.send(info, { t: 'screen', name: screen, lv: game ? game.levelIndex : -1, mode });
+        if (game && (screen === 'play' || screen === 'pause' || screen === 'win')) host.send(info, { t: 'start', lv: game.levelIndex, mode });
+        updateHud(true);
+      },
+      onLeave: (info) => {
+        if (net && net.slots[info.slot] && net.slots[info.slot].info === info) net.slots[info.slot] = null;
+        input.setVirtual('r:' + info.id, null);
+        toast(`${NAMES[info.slot]} hat die Verbindung verloren.`, info.slot);
+        if (screen === 'lobby') renderLobby();
+        updateHud(true);
+      },
+      onInput: (info, st) => { if (st && st.n) input.setVirtual('r:' + info.id, info.slot, st); },
+      onNav: (info, k) => remoteNav(k),
+      onError: (t) => toast(t),
+    });
+    net = { role: 'host', host, tv, slots: tv ? [null, null] : [{ kind: 'local' }, null] };
+    $('#lobby-code').textContent = '····';
+    $('#lobby-title').textContent = tv ? 'Fernseher bereit' : 'Raum offen';
+    document.body.classList.toggle('tv', !!tv);
+    show('lobby');
+    try {
+      const c = await host.open(code);
+      if (!net || net.host !== host) { host.close(); return; }
+      renderLobby();
+      FF.audio.onPlay = (name, v) => { if (net && net.role === 'host') outSfx.push(name); };
+      void c;
+    } catch (e) {
+      closeNet();
+      show(tv ? 'tv' : 'online');
+      $('#online-msg').textContent = 'Raum konnte nicht geöffnet werden: ' + e.message;
+      toast('Raum konnte nicht geöffnet werden: ' + e.message);
+    }
+  }
+
+  function joinLink(code) { return location.origin + location.pathname + '?join=' + code; }
+
+  async function renderLobby() {
+    if (!net || net.role !== 'host') return;
+    const code = net.host.code;
+    if (code) {
+      $('#lobby-code').textContent = code;
+      const link = joinLink(code);
+      $('#lobby-link').textContent = link;
+      const qr = $('#lobby-qr');
+      if (qr.dataset.code !== code) {
+        qr.dataset.code = code;
+        try {
+          if (!globalThis.qrcode) await FF.loadScript('vendor/qrcode.js');
+          const q = globalThis.qrcode(0, 'M');
+          q.addData(link + (net.tv ? '&as=pad' : ''));
+          q.make();
+          qr.innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+        } catch (e) { qr.textContent = ''; }
+      }
+    }
+    $('#lobby-hint').textContent = net.tv
+      ? 'Scannt den QR-Code mit euren Handys oder öffnet die Spieladresse und gebt den Code ein. Die Handys werden zu Controllern. Bluetooth-Gamepads an diesem Gerät gehen auch.'
+      : 'Der andere Spieler scannt den QR-Code oder gibt unter „Online & WLAN“ den Code ein. Funktioniert im selben WLAN und über das Internet.';
+    const ul = $('#lobby-slots');
+    ul.textContent = '';
+    for (const s of [0, 1]) {
+      const occ = net.slots[s];
+      const li = document.createElement('li');
+      let txt = 'wartet …';
+      if (occ && occ.kind === 'local') txt = 'dieses Gerät';
+      else if (occ) txt = occ.info.role === 'pad' ? 'Handy-Controller' : 'eigener Bildschirm';
+      else if (net.tv && input.pads.length > s) txt = 'Gamepad an diesem Gerät';
+      li.innerHTML = `<span class="who-dot" style="background:${FF.COLORS[s]}"></span><b>${NAMES[s]}</b><span>${txt}</span>`;
+      li.className = occ ? 'on' : '';
+      ul.appendChild(li);
+    }
+    updateHud(true);
+  }
+
+  function closeNet() {
+    if (!net) return;
+    if (net.role === 'host') { net.host.broadcast({ t: 'bye' }); net.host.close(); }
+    else net.client.close();
+    for (const k of Object.keys(input.virtual)) if (k.startsWith('r:')) input.setVirtual(k, null);
+    FF.audio.onPlay = null;
+    net = null;
+    document.body.classList.remove('tv');
+    stopWake();
+  }
+
+  // Menüsteuerung vom Handy-Controller aus (für den Fernseher)
+  function remoteNav(k) {
+    if (k === 'resume') { if (screen === 'pause') show('play'); return; }
+    navPending[k] = 1;
+  }
+  const navPending = {};
+
+  // Zustandsbilder an Mitspieler mit eigenem Bildschirm schicken
+  const outSfx = [];
+  let sendT = 0;
+  function hostSend(dt) {
+    if (!net || net.role !== 'host' || !game) { outSfx.length = 0; outToasts.length = 0; return; }
+    sendT -= dt;
+    if (sendT > 0) return;
+    sendT = 1 / 30;
+    if (screen !== 'play' && screen !== 'pause' && screen !== 'win') return;
+    const snap = FF.snapshot(game, outSfx.splice(0), outToasts.splice(0));
+    net.host.broadcast(snap, 'player');
+  }
+
+  // ------------------------------------------------------------ Online: Gast und Controller
+  async function joinRoom(code, role) {
+    code = FF.cleanCode(code);
+    if (code.length !== 4) { $('#online-msg').textContent = 'Der Code hat vier Zeichen.'; return; }
+    closeNet();
+    FF.audio.init();
+    $('#online-msg').textContent = 'Verbinde …';
+    const client = new FF.NetClient({
+      onMessage: (m) => (role === 'pad' ? padMessage(m) : guestMessage(m)),
+      onClose: () => lostConnection(),
+      onError: (t) => toast(t),
+    });
+    if (role === 'pad') { showPad(); $('#pad-status').textContent = 'verbinde …'; }
+    try {
+      const w = await client.join(code, role, '');
+      net = { role: role === 'pad' ? 'pad' : 'guest', client, slot: w.slot, code, state: FF.makePadState() };
+      $('#online-msg').textContent = '';
+      if (role === 'pad') {
+        $('#pad-who').textContent = `Du bist ${NAMES[w.slot]}`;
+        $('#pad-who').style.background = FF.COLORS[w.slot];
+        $('#pad-status').textContent = `Raum ${code}`;
+        keepAwake();
+      } else {
+        $('#guest-title').textContent = `Du spielst ${NAMES[w.slot]}`;
+        $('#guest-text').textContent = 'Verbunden. Warte, bis Rot ein Level startet.';
+        show('guest');
+      }
+    } catch (e) {
+      if (role === 'pad') { hidePad(); show('online'); }
+      $('#online-msg').textContent = e.message;
+      toast(e.message);
+    }
+  }
+
+  function lostConnection() {
+    const wasPad = net && net.role === 'pad';
+    closeNet();
+    game = null;
+    if (wasPad) hidePad();
+    $('#guest-title').textContent = 'Verbindung verloren';
+    $('#guest-text').textContent = 'Der andere Bildschirm ist nicht mehr erreichbar.';
+    show('guest');
+  }
+
+  function guestMessage(m) {
+    switch (m.t) {
+      case 'start':
+        mode = m.mode;
+        game = new FF.Game(m.lv, m.mode);
+        game.view = true;
+        enterLevel(m.lv);
+        break;
+      case 'st':
+        if (!game || game.levelIndex !== m.lv) { mode = m.mode; game = new FF.Game(m.lv, m.mode); game.view = true; enterLevel(m.lv); }
+        FF.applySnapshot(game, m);
+        if (m.sfx) for (const s of m.sfx) FF.audio.play(s);
+        if (m.ts) for (const [t, w] of m.ts) toast(t, w);
+        break;
+      case 'screen':
+        if (m.name === 'play' && game) show('play');
+        else if (m.name === 'pause' && game) show('pause');
+        else if (m.name === 'win' && game) { showWin(game.levelIndex, game.beadsGot(), game.beads.length); show('win'); }
+        else if (!['play', 'pause', 'win'].includes(m.name)) {
+          game = null;
+          $('#guest-text').textContent = 'Verbunden. Warte, bis Rot ein Level startet.';
+          show('guest');
+        }
+        break;
+      case 'rumble': input.rumble(net.slot, m.s, m.ms); break;
+      case 'bye': lostConnection(); break;
+    }
+  }
+
+  // Gast schickt seine Eingaben (Tastatur, Gamepad, Touch dieses Geräts)
+  let inT = 0, lastSent = '';
+  function guestSend(dt) {
+    if (!net || net.role !== 'guest') return;
+    const c = input.controls('solo')[0];
+    if (screen !== 'play') for (const k in c) c[k] = 0;
+    const g = input.global();
+    FF.ctlToPad(c, net.state);
+    if (g.pause && screen === 'play') net.state.n.pause++;
+    inT -= dt;
+    const key = JSON.stringify(net.state);
+    if (key !== lastSent || inT <= 0) {
+      net.client.send({ t: 'in', s: net.state });
+      lastSent = key; inT = 0.2;
+    }
+  }
+
+  // ---- Handy-Controller
+  let padTouch = null;
+  function showPad() {
+    $('#padui').hidden = false;
+    document.body.classList.add('padmode');
+    for (const s of screens) $('#scr-' + s).hidden = true;
+    $('#hud').hidden = true; $('#touch').hidden = true;
+    screen = 'pad';
+    if (!padTouch) {
+      padTouch = new FF.TouchPad($('#pad-touch'), {
+        onChange: (st) => { if (net && net.role === 'pad') net.client.send({ t: 'in', s: st }); },
+      });
+    }
+    padTouch.setSolo(true);
+  }
+  function hidePad() {
+    $('#padui').hidden = true;
+    document.body.classList.remove('padmode');
+    if (padTouch) padTouch.reset();
+  }
+  function padMessage(m) {
+    if (m.t === 'screen') {
+      const play = m.name === 'play';
+      $('#pad-nav').hidden = play;
+      $('#pad-touch').hidden = !play;
+      $('#pad-nav-text').textContent = m.name === 'pause' ? 'Pause – auf dem Fernseher weiterspielen' : 'Menü auf dem Fernseher bedienen';
+      if (padTouch) { padTouch.setSolo(m.mode === 'solo'); if (!play) padTouch.reset(); }
+    } else if (m.t === 'rumble') { if (navigator.vibrate) { try { navigator.vibrate(Math.round(m.ms)); } catch (e) { /* egal */ } } }
+    else if (m.t === 'bye') lostConnection();
+  }
+  setInterval(() => {
+    // regelmäßig senden, damit gehaltene Richtungen nach Paketverlust stimmen
+    if (net && net.role === 'pad' && padTouch) net.client.send({ t: 'in', s: padTouch.state });
+    if (net && (net.role === 'pad' || net.role === 'guest')) net.client.ping();
+  }, 1000);
+  $$('#pad-nav [data-nav]').forEach((b) => b.addEventListener('click', () => {
+    if (navigator.vibrate) try { navigator.vibrate(8); } catch (e) { /* egal */ }
+    if (net && net.role === 'pad') net.client.send({ t: 'nav', k: b.dataset.nav });
+  }));
+  $('#pad-pause').addEventListener('click', () => { if (net && padTouch) { padTouch.state.n.pause++; net.client.send({ t: 'in', s: padTouch.state }); } });
+  $('#pad-leave').addEventListener('click', () => { closeNet(); hidePad(); show('title'); });
+
+  let wake = null;
+  function keepAwake() { try { navigator.wakeLock && navigator.wakeLock.request('screen').then((w) => (wake = w)).catch(() => {}); } catch (e) { /* egal */ } }
+  function stopWake() { try { wake && wake.release(); } catch (e) { /* egal */ } wake = null; }
+
+  // ------------------------------------------------------------ Chromecast (Presentation API)
+  if (globalThis.PresentationRequest) $('#btn-cast').hidden = false;
+  async function castToTv() {
+    const code = FF.randomCode();
+    const url = location.origin + location.pathname + '?tv=1&code=' + code;
+    try {
+      const req = new globalThis.PresentationRequest([url]);
+      await req.start();
+      toast('Fernseher verbunden – dieses Handy wird zum Controller.');
+      for (let i = 0; i < 12; i++) {
+        await new Promise((r) => setTimeout(r, 2500));
+        try { await joinRoom(code, 'pad'); if (net) return; } catch (e) { /* nochmal */ }
+      }
+    } catch (e) {
+      toast('Übertragung abgebrochen oder kein Gerät gefunden.');
+    }
+  }
+
+  // ------------------------------------------------------------ Controller-Liste
+  let padSig = '';
+  function renderPadList(force) {
+    const ul = $('#pad-list');
+    const sig = input.pads.map((p) => p.index + p.id + input.assignment(p) + (p.any ? 1 : 0)).join('|');
+    if (!force && sig === padSig) return;
+    padSig = sig;
+    ul.textContent = '';
+    if (!input.pads.length) { ul.innerHTML = '<li class="empty">Noch keiner. Verbinde einen Controller und drücke eine Taste.</li>'; return; }
+    for (const p of input.pads) {
+      const li = document.createElement('li');
+      li.className = p.any ? 'active' : '';
+      const a = input.assignment(p);
+      const name = (p.id || 'Controller').replace(/\(.*?\)/g, '').trim().slice(0, 42) || 'Controller';
+      li.innerHTML = `<span class="pad-name"></span><span class="pad-btns"></span>`;
+      li.querySelector('.pad-name').textContent = `${p.index + 1}. ${name}`;
+      const box = li.querySelector('.pad-btns');
+      for (const [v, label] of [['auto', 'Automatisch'], [0, 'Rot'], [1, 'Blau'], ['off', 'Aus']]) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chip' + (a === v ? ' sel' : '');
+        b.textContent = label;
+        b.addEventListener('click', () => { input.setAssignment(p, v); renderPadList(true); });
+        box.appendChild(b);
+      }
+      const t = document.createElement('button');
+      t.type = 'button'; t.className = 'chip'; t.textContent = 'Vibration';
+      t.addEventListener('click', () => {
+        const act = p.gp && p.gp.vibrationActuator;
+        if (act && act.playEffect) act.playEffect('dual-rumble', { duration: 300, strongMagnitude: 0.8, weakMagnitude: 0.8 }).catch(() => {});
+        else toast('Dieser Controller oder Browser kann nicht vibrieren.');
+      });
+      box.appendChild(t);
+      ul.appendChild(li);
+    }
+  }
+  addEventListener('gamepadconnected', (e) => { toast(`Controller verbunden: ${(e.gamepad.id || '').replace(/\(.*?\)/g, '').trim().slice(0, 30)}`); if (screen === 'lobby') renderLobby(); });
+  addEventListener('gamepaddisconnected', () => toast('Controller getrennt.'));
 
   // ------------------------------------------------------------ Aktionen
   function act(a) {
     FF.audio.init();
     FF.audio.play('click');
     switch (a) {
-      case 'solo': case 'coop': mode = a; buildLevels(); show('levels'); break;
+      case 'solo': case 'coop': mode = a; buildLevels(); returnTo = 'title'; show('levels'); break;
+      case 'online': $('#online-msg').textContent = ''; show('online'); break;
+      case 'tv': show('tv'); break;
+      case 'pads': show('pads'); break;
       case 'help': returnTo = screen; show('help'); break;
-      case 'back': show(screen === 'help' ? returnTo : 'title'); break;
-      case 'resume': show('play'); break;
+      case 'fullscreen': goFullscreen(false); break;
+      case 'back':
+        if (screen === 'help') show(returnTo);
+        else if (screen === 'levels' && net && net.role === 'host') show('lobby');
+        else show('title');
+        break;
+      case 'host': openRoom(false); break;
+      case 'tv-host': openRoom(true); break;
+      case 'cast': castToTv(); break;
+      case 'join-player': joinRoom($('#join-code').value, 'player'); break;
+      case 'join-pad': joinRoom($('#join-code').value, 'pad'); break;
+      case 'lobby-coop': mode = 'coop'; buildLevels(); show('levels'); break;
+      case 'lobby-solo': mode = 'solo'; buildLevels(); show('levels'); break;
+      case 'close-room': closeNet(); show('title'); break;
+      case 'copy-link': {
+        const link = $('#lobby-link').textContent;
+        if (navigator.clipboard) navigator.clipboard.writeText(link).then(() => toast('Link kopiert.'), () => toast(link));
+        else toast(link);
+        break;
+      }
+      case 'leave': closeNet(); game = null; show('title'); break;
+      case 'resume':
+        if (net && net.role === 'guest') net.client.send({ t: 'nav', k: 'resume' });
+        else show('play');
+        break;
       case 'checkpoint': game.restartCheckpoint(); show('play'); break;
       case 'restart': startLevel(game.levelIndex); break;
       case 'next': startLevel(Math.min(FF.LEVELS.length - 1, game.levelIndex + 1)); break;
       case 'replay': startLevel(game.levelIndex); break;
-      case 'menu': game = null; show('title'); break;
+      case 'menu':
+        if (net && net.role === 'guest') { closeNet(); game = null; show('title'); break; }
+        game = null; FF.audio.setMood('garden');
+        show(net && net.role === 'host' ? 'lobby' : 'title');
+        break;
     }
   }
-  document.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => act(b.dataset.act)));
+  $$('[data-act]').forEach((b) => b.addEventListener('click', () => act(b.dataset.act)));
+  $('#join-code').addEventListener('input', (e) => { e.target.value = FF.cleanCode(e.target.value); });
+  $('#join-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') act('join-player'); });
 
-  $('#btn-pause').addEventListener('click', () => { if (screen === 'play') show('pause'); });
+  $('#btn-pause').addEventListener('click', () => { if (screen === 'play') { if (net && net.role === 'guest') { net.state.n.pause++; } else show('pause'); } });
+  $('#btn-full').addEventListener('click', () => goFullscreen(false));
   const muteBtn = $('#btn-mute');
   const syncMute = () => muteBtn.classList.toggle('off', FF.audio.muted);
   muteBtn.addEventListener('click', () => { FF.audio.init(); FF.audio.setMuted(!FF.audio.muted); syncMute(); });
   syncMute();
 
-  // Touch-Knöpfe
-  document.querySelectorAll('#touch button').forEach((b) => {
-    const code = b.dataset.code;
-    const on = (e) => { e.preventDefault(); FF.audio.init(); input.press(code); b.classList.add('on'); };
-    const off = (e) => { e.preventDefault(); input.release(code); b.classList.remove('on'); };
-    b.addEventListener('pointerdown', on);
-    b.addEventListener('pointerup', off);
-    b.addEventListener('pointercancel', off);
-    b.addEventListener('pointerleave', off);
-    b.addEventListener('contextmenu', (e) => e.preventDefault());
-  });
-
-  // Menü mit Gamepad oder Pfeiltasten bedienen
+  // Menü mit Gamepad, Pfeiltasten oder Handy-Controller bedienen
   function menuNav(gl) {
-    const btns = Array.from(document.querySelectorAll('#scr-' + screen + ' .btn')).filter((b) => !b.hidden && b.offsetParent);
+    const btns = $$('#scr-' + screen + ' .btn').filter((b) => !b.hidden && b.offsetParent);
     if (!btns.length) return;
     let i = btns.indexOf(document.activeElement);
     if (gl.down) { i = (i + 1) % btns.length; btns[i].focus(); }
     if (gl.up) { i = (i - 1 + btns.length) % btns.length; btns[i].focus(); }
-    if (gl.ok && i >= 0) btns[i].click();
+    if (gl.ok) {
+      if (i < 0) (btns.find((b) => b.hasAttribute('data-default')) || btns[0]).focus();
+      else btns[i].click();
+    }
     if (gl.back) {
       if (screen === 'pause') act('resume');
-      else if (screen === 'levels' || screen === 'help') act('back');
+      else if (['levels', 'help', 'online', 'tv', 'pads'].includes(screen)) act('back');
     }
   }
 
-  addEventListener('resize', () => R.resize());
+  addEventListener('resize', () => { R.resize(); });
   addEventListener('keydown', () => FF.audio.init(), { once: true });
   addEventListener('pointerdown', () => FF.audio.init(), { once: true });
-  document.addEventListener('visibilitychange', () => { if (document.hidden && screen === 'play') show('pause'); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && screen === 'play' && !(net && net.role === 'guest')) show('pause');
+    if (!document.hidden && net && net.role === 'pad') keepAwake();
+  });
 
   // ------------------------------------------------------------ Schleife
   let last = performance.now();
-  let hudT = 0;
-  const idle = [FF.makeCtl(), FF.makeCtl()];
+  let hudT = 0, slowT = 0, padT = 0;
   function loop(now) {
-    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
+    const dt = Math.min(0.1, Math.max(0, (now - last) / 1000));
     last = now;
     input.poll();
     const gl = input.global();
+    for (const k in navPending) { gl[k] = 1; delete navPending[k]; }
     if (gl.mute) { FF.audio.init(); FF.audio.setMuted(!FF.audio.muted); syncMute(); }
 
-    if (screen === 'play' && game) {
+    if (screen === 'pad') { input.endFrame(); requestAnimationFrame(loop); return; }
+
+    const guest = net && net.role === 'guest';
+    if (screen === 'play' && game && !guest) {
       if (gl.pause) show('pause');
       else {
-        game.frame(dt, input.controls(mode));
+        let opts = {};
+        if (net && net.role === 'host') {
+          const occ = net.slots;
+          opts = {
+            noKeysP1: !!(occ[0] && occ[0].kind === 'remote') || net.tv,
+            noKeysP2: !!(occ[1] && occ[1].kind === 'remote'),
+            freeSlots: [0, 1].filter((s) => !occ[s]),
+          };
+          if (net.tv && mode === 'solo') opts.noKeysP1 = false;
+        }
+        game.frame(dt, input.controls(mode, opts));
         handleEvents();
       }
-      const tv = !$('#touch').hidden, want = isTouch || input.device === 'touch';
-      if (tv !== want) $('#touch').hidden = !want;
+    } else if (guest && game) {
+      game.time += dt;
+      for (const e of game.fx) e.t += dt;
+      game.fx = game.fx.filter((e) => e.t < e.life);
+      FF.smoothView(game, dt);
+      game.cosmetics(dt);
+      if (screen !== 'play') menuNav(gl);
     } else {
       if (gl.pause && screen === 'pause') show('play');
       else menuNav(gl);
     }
+    guestSend(dt);
+    hostSend(dt);
 
-    if (game && screen !== 'title' && screen !== 'levels' && !(screen === 'help' && returnTo === 'title')) {
-      R.draw(game, dt);
-    } else {
+    const inGame = game && (screen === 'play' || screen === 'pause' || screen === 'win' || (screen === 'help' && returnTo === 'pause'));
+    if (inGame) R.draw(game, dt);
+    else {
       demo.frame(dt, idle);
       R.draw(demo, dt, { pan: true });
     }
 
+    // Läuft das Gerät zu langsam? Dann auf einfache Grafik umschalten.
+    if (dt > 1 / 38) slowT += dt; else slowT = Math.max(0, slowT - dt * 0.5);
+    if (slowT > 2.5 && R.quality !== 'low') { R.setQuality('low'); toast('Grafik vereinfacht, damit es flüssig bleibt.'); }
+
     hudT -= dt;
-    if (hudT <= 0) { updateHud(); hudT = 0.15; }
-    if (FF.audio.ctx) FF.audio.music(true);
+    if (hudT <= 0) { updateHud(); hudT = 0.25; }
+    padT -= dt;
+    if (padT <= 0) { if (screen === 'pads') renderPadList(); if (screen === 'lobby') renderLobbyPads(); padT = 0.3; }
+    if (FF.audio.ctx) {
+      FF.audio.music(true);
+      FF.audio.update(screen === 'play' ? game : null, dt);
+    }
     input.endFrame();
     requestAnimationFrame(loop);
   }
+  let lobbyPadCount = -1;
+  function renderLobbyPads() { if (net && net.tv && input.pads.length !== lobbyPadCount) { lobbyPadCount = input.pads.length; renderLobby(); } }
 
   show('title');
   requestAnimationFrame(loop);
 
-  // Neue Version auf dem Server? Dann im Menü neu laden, nie mitten im Level.
-  const myVersion = window.FF_VERSION;
-  function checkVersion() {
-    if (!myVersion || location.protocol === 'file:') return;
-    fetch('version.json?t=' + Date.now(), { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((v) => {
-        if (v && v.v && v.v !== myVersion && screen !== 'play' && screen !== 'pause') {
-          location.replace(location.pathname + '?v=' + encodeURIComponent(v.v));
-        }
-      })
-      .catch(() => {});
+  // Einstieg über Link: ?join=CODE (Mitspielen/Controller) oder ?tv=1&code=CODE (Fernseher)
+  const jc = FF.cleanCode(params.get('join'));
+  if (jc) {
+    $('#join-code').value = jc;
+    show('online');
+    if (params.get('as') === 'pad') { $('#online-msg').textContent = 'Tippe auf „Nur als Controller“, um dieses Handy als Controller zu verbinden.'; }
+  } else if (params.get('tv')) {
+    openRoom(true, FF.cleanCode(params.get('code')) || undefined);
   }
-  checkVersion();
-  setInterval(checkVersion, 60000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkVersion(); });
 
   // Für Tests im Browser
-  FF.debug = { get game() { return game; }, startLevel, setMode: (m) => (mode = m), input, renderer: R };
+  FF.debug = {
+    get game() { return game; }, get net() { return net; }, get screen() { return screen; },
+    startLevel, setMode: (m) => (mode = m), input, renderer: R, openRoom, joinRoom, act,
+  };
 })();

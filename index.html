@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Fadenfreunde</title>
+<meta name="theme-color" content="#111a18">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,600;1,9..144,800&family=Nunito:wght@600;800&display=swap">
@@ -17,29 +24,35 @@
     <span id="hud-level" class="hud-chip"></span>
     <span class="hud-chip"><span class="bead-dot" aria-hidden="true"></span><span id="hud-beads">0/8</span></span>
     <span id="hud-who" class="hud-chip" hidden></span>
+    <span id="hud-net" class="hud-chip" hidden></span>
   </div>
   <div class="hud-right">
+    <button id="btn-full" class="hud-btn" type="button" aria-label="Vollbild">⛶</button>
     <button id="btn-mute" class="hud-btn" type="button" aria-label="Ton an/aus">♪</button>
     <button id="btn-pause" class="hud-btn" type="button" aria-label="Pause">❚❚</button>
   </div>
 </div>
 <div id="toasts" aria-live="polite"></div>
+<div id="touch" hidden></div>
+<div id="rotate" aria-live="polite"><div><b>Bitte quer halten</b><span>Fadenfreunde spielt sich im Querformat am besten.</span></div></div>
 
-<div id="touch" hidden>
-  <div class="tpad left">
-    <button type="button" data-code="TouchLeft" aria-label="Links">◀</button>
-    <button type="button" data-code="TouchDown" aria-label="Runter">▼</button>
-    <button type="button" data-code="TouchRight" aria-label="Rechts">▶</button>
-  </div>
-  <div class="tpad right">
-    <button type="button" data-code="TouchGrip" class="small">Halten</button>
-    <button type="button" data-code="TouchKnot" class="small">Knoten</button>
-    <button type="button" data-code="TouchLasso" class="mid">Lasso</button>
-    <button type="button" data-code="TouchUp" class="big" aria-label="Springen / hochklettern">▲</button>
-  </div>
-  <div class="tpad top solo-only">
-    <button type="button" data-code="TouchSwap" class="small">Wechsel</button>
-    <button type="button" data-code="TouchMerge" class="small">Huckepack</button>
+<!-- Handy als Controller -->
+<div id="padui" hidden>
+  <header class="pad-head">
+    <span id="pad-who" class="pad-who">Controller</span>
+    <span id="pad-status" class="pad-status">verbinde …</span>
+    <button type="button" id="pad-pause" class="pad-mini">❚❚</button>
+    <button type="button" id="pad-leave" class="pad-mini">✕</button>
+  </header>
+  <div id="pad-touch"></div>
+  <div id="pad-nav" hidden>
+    <p id="pad-nav-text">Menü auf dem Fernseher bedienen</p>
+    <div class="pad-nav-grid">
+      <button type="button" data-nav="up">▲</button>
+      <button type="button" data-nav="ok" class="ok">OK</button>
+      <button type="button" data-nav="down">▼</button>
+      <button type="button" data-nav="back" class="back">Zurück</button>
+    </div>
   </div>
 </div>
 
@@ -51,8 +64,16 @@
       <p class="lede">Zwei kleine Wollfiguren, ein gemeinsamer Faden. Schwingt, klettert und knotet euch durch fünf Landschaften nach Hause.</p>
       <div class="menu">
         <button type="button" class="btn primary" data-act="solo"><b>Allein spielen</b><small>Wechseln und huckepack tragen</small></button>
-        <button type="button" class="btn primary blue" data-act="coop"><b>Zu zweit spielen</b><small>Eine Tastatur oder zwei Gamepads</small></button>
-        <button type="button" class="btn" data-act="help">Steuerung</button>
+        <button type="button" class="btn primary blue" data-act="coop"><b>Zu zweit an einem Gerät</b><small>Eine Tastatur, Gamepads oder Bluetooth-Controller</small></button>
+        <div class="menu-row">
+          <button type="button" class="btn" data-act="online"><b>Online &amp; WLAN</b><small>Zu zweit an zwei Geräten</small></button>
+          <button type="button" class="btn" data-act="tv"><b>Fernseher</b><small>Handys als Controller</small></button>
+        </div>
+        <div class="menu-row">
+          <button type="button" class="btn" data-act="pads">Controller</button>
+          <button type="button" class="btn" data-act="help">Steuerung</button>
+          <button type="button" class="btn" data-act="fullscreen">Vollbild</button>
+        </div>
       </div>
     </div>
   </section>
@@ -61,6 +82,96 @@
     <div class="panel">
       <h2 id="levels-title">Level wählen</h2>
       <ol id="level-list" class="levels"></ol>
+      <div class="menu row"><button type="button" class="btn" data-act="back">Zurück</button></div>
+    </div>
+  </section>
+
+  <section id="scr-online" class="screen" hidden>
+    <div class="panel">
+      <h2>Online &amp; WLAN</h2>
+      <p class="lede">Zwei Geräte, zwei Bildschirme: ob im selben WLAN oder über das Internet. Einer erstellt einen Raum, der andere tippt den Code ein oder scannt den QR-Code.</p>
+      <div class="menu">
+        <button type="button" class="btn primary" data-act="host"><b>Raum erstellen</b><small>Du spielst Rot und wählst die Level</small></button>
+      </div>
+      <h3 class="sub">Raum beitreten</h3>
+      <div class="join-row">
+        <label for="join-code" class="sr">Raum-Code</label>
+        <input id="join-code" class="code-input" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" maxlength="4" placeholder="CODE" spellcheck="false">
+      </div>
+      <div class="menu">
+        <button type="button" class="btn primary blue" data-act="join-player"><b>Mitspielen</b><small>Du spielst Blau auf diesem Bildschirm</small></button>
+        <button type="button" class="btn" data-act="join-pad"><b>Nur als Controller</b><small>Dieses Handy steuert, gespielt wird auf dem anderen Bildschirm</small></button>
+      </div>
+      <p id="online-msg" class="note" role="status"></p>
+      <div class="menu row"><button type="button" class="btn" data-act="back">Zurück</button></div>
+    </div>
+  </section>
+
+  <section id="scr-lobby" class="screen" hidden>
+    <div class="panel lobby">
+      <h2 id="lobby-title">Raum offen</h2>
+      <div class="lobby-grid">
+        <div class="lobby-code">
+          <span class="lbl">Code</span>
+          <strong id="lobby-code">····</strong>
+          <div id="lobby-qr" class="qr" aria-label="QR-Code zum Beitreten"></div>
+          <button type="button" class="btn small" data-act="copy-link" id="btn-copy">Link kopieren</button>
+          <code id="lobby-link" class="link"></code>
+        </div>
+        <div class="lobby-side">
+          <p id="lobby-hint" class="lede"></p>
+          <ul id="lobby-slots" class="slots"></ul>
+          <div class="menu">
+            <button type="button" class="btn primary blue" data-act="lobby-coop" data-default><b>Zu zweit starten</b><small>Level wählen</small></button>
+            <button type="button" class="btn" data-act="lobby-solo">Allein starten</button>
+            <button type="button" class="btn" data-act="close-room">Raum schließen</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="scr-tv" class="screen" hidden>
+    <div class="panel">
+      <h2>Auf dem Fernseher spielen</h2>
+      <p class="lede">Der Fernseher zeigt das Spiel, eure Handys werden zu Controllern. Bluetooth-Gamepads am Fernseher oder Laptop funktionieren auch.</p>
+      <div class="menu">
+        <button type="button" class="btn primary" data-act="tv-host"><b>Dieses Gerät ist der Bildschirm</b><small>Öffne diese Seite im Browser des Fernsehers, Laptops oder Beamers</small></button>
+        <button type="button" class="btn primary blue" data-act="cast" id="btn-cast" hidden><b>Auf Chromecast übertragen</b><small>Dieses Handy wird danach zum Controller</small></button>
+      </div>
+      <h3 class="sub">Bildschirm übertragen</h3>
+      <ul class="tips">
+        <li><b>iPhone / iPad:</b> Kontrollzentrum → Bildschirmsynchronisierung → Apple TV oder AirPlay-Fernseher. Dann hier spielen, am besten mit einem Bluetooth-Controller.</li>
+        <li><b>Android:</b> Schnelleinstellungen → „Übertragen“ oder „Smart View“ → Fernseher wählen.</li>
+        <li><b>Smart-TV, Fire TV, Google TV:</b> Im Browser des Fernsehers die Spieladresse öffnen und „Dieses Gerät ist der Bildschirm“ wählen. Dann mit den Handys den QR-Code scannen.</li>
+        <li><b>Laptop am Fernseher:</b> Per HDMI anschließen, Vollbild einschalten, Controller verbinden.</li>
+      </ul>
+      <div class="menu row"><button type="button" class="btn" data-act="back">Zurück</button></div>
+    </div>
+  </section>
+
+  <section id="scr-pads" class="screen" hidden>
+    <div class="panel help">
+      <h2>Controller verbinden</h2>
+      <div class="help-grid">
+        <div class="help-col">
+          <h3>Erkannte Controller</h3>
+          <ul id="pad-list" class="padlist"><li class="empty">Noch keiner. Verbinde einen Controller und drücke eine Taste.</li></ul>
+          <p class="note">Ohne feste Zuordnung gilt: ein Controller steuert Blau (Rot nimmt die Tastatur), zwei Controller steuern Rot und Blau. Allein steuert jeder Controller die aktive Figur.</p>
+        </div>
+        <div class="help-col">
+          <h3>Per Bluetooth koppeln</h3>
+          <ul class="tips">
+            <li><b>Xbox:</b> Xbox-Taste einschalten, dann die Koppeltaste oben drücken, bis das Logo blinkt.</li>
+            <li><b>PlayStation 4/5:</b> „Share“ bzw. „Create“ und PS-Taste gleichzeitig halten, bis das Licht blinkt.</li>
+            <li><b>Switch Pro:</b> Die kleine Sync-Taste oben gedrückt halten.</li>
+            <li>Dann in den Bluetooth-Einstellungen des Geräts (Handy, Tablet, Laptop, Fernseher) den Controller auswählen.</li>
+            <li>Danach einmal eine Taste drücken: Browser melden Controller erst nach dem ersten Tastendruck.</li>
+          </ul>
+          <h3>Handy als Controller</h3>
+          <p class="note">Unter „Fernseher“ oder „Online &amp; WLAN“ einen Raum öffnen und mit dem Handy den QR-Code scannen.</p>
+        </div>
+      </div>
       <div class="menu row"><button type="button" class="btn" data-act="back">Zurück</button></div>
     </div>
   </section>
@@ -81,6 +192,11 @@
             <dt><kbd>Tab</kbd></dt><dd>Figur wechseln</dd>
             <dt><kbd>F</kbd></dt><dd>Partner absetzen / huckepack nehmen</dd>
           </dl>
+          <h3>Handy &amp; Tablet</h3>
+          <dl>
+            <dt>Linke Hälfte</dt><dd>Joystick: dort hinziehen, wo der Daumen gerade ist</dd>
+            <dt>Rechte Seite</dt><dd>Sprung, Lasso, Halten, Knoten (allein auch Wechsel und Huckepack)</dd>
+          </dl>
         </div>
         <div class="help-col">
           <h3>Zu zweit (eine Tastatur)</h3>
@@ -88,7 +204,7 @@
             <dt><span class="tag red">Rot</span></dt><dd><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> · Lasso <kbd>Q</kbd> · Halten <kbd>E</kbd> · Knoten <kbd>R</kbd></dd>
             <dt><span class="tag blue">Blau</span></dt><dd><kbd>I</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd> oder Pfeile · Lasso <kbd>U</kbd> · Halten <kbd>O</kbd> · Knoten <kbd>P</kbd></dd>
           </dl>
-          <h3>Gamepad</h3>
+          <h3>Gamepad (USB oder Bluetooth)</h3>
           <dl>
             <dt>Stick / Steuerkreuz</dt><dd>Laufen, schwingen, klettern</dd>
             <dt><kbd>A</kbd></dt><dd>Springen, vom Lasso abspringen</dd>
@@ -96,10 +212,18 @@
             <dt><kbd>RB</kbd> / <kbd>RT</kbd></dt><dd>Festhalten</dd>
             <dt><kbd>Y</kbd> · <kbd>LB</kbd></dt><dd>Wechseln · Huckepack (allein)</dd>
           </dl>
-          <p class="note">Zu zweit mit einem Gamepad spielt Blau am Gamepad und Rot an der Tastatur. <kbd>Esc</kbd> oder <kbd>Start</kbd> pausiert, <kbd>M</kbd> schaltet den Ton.</p>
+          <p class="note"><kbd>Esc</kbd> oder <kbd>Start</kbd> pausiert, <kbd>M</kbd> schaltet den Ton.</p>
         </div>
       </div>
       <div class="menu row"><button type="button" class="btn" data-act="back">Zurück</button></div>
+    </div>
+  </section>
+
+  <section id="scr-guest" class="screen dim" hidden>
+    <div class="panel small">
+      <h2 id="guest-title">Verbunden</h2>
+      <p id="guest-text" class="lede">Warte, bis Rot ein Level startet.</p>
+      <div class="menu"><button type="button" class="btn" data-act="leave">Verlassen</button></div>
     </div>
   </section>
 
@@ -108,8 +232,8 @@
       <h2>Pause</h2>
       <div class="menu">
         <button type="button" class="btn primary" data-act="resume">Weiterspielen</button>
-        <button type="button" class="btn" data-act="checkpoint">Zum letzten Zwischenstand</button>
-        <button type="button" class="btn" data-act="restart">Level neu beginnen</button>
+        <button type="button" class="btn host-only" data-act="checkpoint">Zum letzten Zwischenstand</button>
+        <button type="button" class="btn host-only" data-act="restart">Level neu beginnen</button>
         <button type="button" class="btn" data-act="help">Steuerung</button>
         <button type="button" class="btn" data-act="menu">Hauptmenü</button>
       </div>
@@ -120,7 +244,7 @@
     <div class="panel small">
       <h2 id="win-title">Geschafft!</h2>
       <p id="win-text" class="lede"></p>
-      <div class="menu">
+      <div class="menu host-only">
         <button type="button" class="btn primary" data-act="next" id="btn-next">Nächstes Level</button>
         <button type="button" class="btn" data-act="replay">Nochmal spielen</button>
         <button type="button" class="btn" data-act="menu">Hauptmenü</button>
@@ -135,6 +259,8 @@
 <script src="src/game.js"></script>
 <script src="src/audio.js"></script>
 <script src="src/input.js"></script>
+<script src="src/touch.js"></script>
+<script src="src/net.js"></script>
 <script src="src/render.js"></script>
 <script src="src/main.js"></script>
 </body>

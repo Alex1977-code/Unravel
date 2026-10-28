@@ -1,22 +1,18 @@
 'use strict';
-// Eingabe: Tastatur (eine oder zwei Personen), Gamepads und Touch-Knöpfe.
+// Eingabe: Tastatur (eine oder zwei Personen), Gamepads (USB/Bluetooth), Touch-Joystick
+// und "virtuelle" Controller (Handys im WLAN/Internet).
 (function () {
   const FF = globalThis.FF;
 
   const KEYS = {
-    p1: {
-      left: ['KeyA', 'TouchLeft'], right: ['KeyD', 'TouchRight'], up: ['KeyW', 'TouchUp'], down: ['KeyS', 'TouchDown'],
-      lasso: ['KeyQ', 'TouchLasso'], grip: ['KeyE', 'TouchGrip'], knot: ['KeyR', 'TouchKnot'],
-    },
+    p1: { left: ['KeyA'], right: ['KeyD'], up: ['KeyW'], down: ['KeyS'], lasso: ['KeyQ'], grip: ['KeyE'], knot: ['KeyR'] },
     p2: {
       left: ['KeyJ', 'ArrowLeft'], right: ['KeyL', 'ArrowRight'], up: ['KeyI', 'ArrowUp'], down: ['KeyK', 'ArrowDown'],
       lasso: ['KeyU', 'Numpad1', 'ShiftRight'], grip: ['KeyO', 'Numpad2', 'ControlRight'], knot: ['KeyP', 'Numpad3', 'NumpadEnter'],
     },
     solo: {
-      left: ['KeyA', 'ArrowLeft', 'TouchLeft'], right: ['KeyD', 'ArrowRight', 'TouchRight'],
-      up: ['KeyW', 'ArrowUp', 'Space', 'TouchUp'], down: ['KeyS', 'ArrowDown', 'TouchDown'],
-      lasso: ['KeyQ', 'KeyJ', 'TouchLasso'], grip: ['KeyE', 'KeyK', 'TouchGrip'], knot: ['KeyR', 'KeyL', 'TouchKnot'],
-      swap: ['Tab', 'TouchSwap'], merge: ['KeyF', 'TouchMerge'],
+      left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'], up: ['KeyW', 'ArrowUp', 'Space'], down: ['KeyS', 'ArrowDown'],
+      lasso: ['KeyQ', 'KeyJ'], grip: ['KeyE', 'KeyK'], knot: ['KeyR', 'KeyL'], swap: ['Tab'], merge: ['KeyF'],
     },
   };
   FF.KEYS = KEYS;
@@ -27,10 +23,15 @@
       coop: { move: 'A D/J L', up: 'W/I', updown: 'W S/I K', lasso: 'Q/U', grip: 'E/O', knot: 'R/P', swap: '', merge: '' },
     },
     pad: { move: '◀ ▶', up: 'A', updown: '▲ ▼', lasso: 'X', grip: 'RB', knot: 'B', swap: 'Y', merge: 'LB' },
-    touch: { move: '◀ ▶', up: '▲', updown: '▲ ▼', lasso: 'Lasso', grip: 'Halten', knot: 'Knoten', swap: 'Wechsel', merge: 'Huckepack' },
+    touch: { move: 'Stick', up: 'Sprung', updown: 'Stick ▲▼', lasso: 'Lasso', grip: 'Halten', knot: 'Knoten', swap: 'Wechsel', merge: 'Huckepack' },
   };
 
   const PREVENT = new Set(['Tab', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftRight', 'ControlRight']);
+  const PRESS_KEYS = ['jump', 'jumpk', 'lasso', 'knot', 'swap', 'merge', 'down', 'pause'];
+
+  // Zustand eines virtuellen Controllers (Touch oder Handy):
+  // gehaltene Richtungen/Tasten + Zähler für Tastendrücke, damit kein Druck verloren geht.
+  FF.makePadState = () => ({ left: 0, right: 0, up: 0, down: 0, jump: 0, grip: 0, n: { jump: 0, jumpk: 0, lasso: 0, knot: 0, swap: 0, merge: 0, down: 0, pause: 0 } });
 
   class Input {
     constructor() {
@@ -40,6 +41,9 @@
       this.pads = [];
       this.device = 'kb';
       this.captureGame = false;
+      this.virtual = {};       // name -> { slot, state }
+      this.lastN = {};
+      this.padMap = FF.store.get('padmap', {});
       addEventListener('keydown', (e) => {
         if (this.captureGame && PREVENT.has(e.code)) e.preventDefault();
         if (!this.down.has(e.code)) this.hit.add(e.code);
@@ -50,8 +54,10 @@
       addEventListener('blur', () => this.down.clear());
     }
 
-    press(code) { if (!this.down.has(code)) this.hit.add(code); this.down.add(code); this.device = 'touch'; }
-    release(code) { this.down.delete(code); }
+    padKey(gp) { return gp.index + ':' + (gp.id || '').slice(0, 40); }
+    // Zuordnung Gamepad -> Spieler: 'auto', 0 (Rot), 1 (Blau) oder 'off'
+    assignment(gp) { const v = this.padMap[this.padKey(gp)]; return v === undefined ? 'auto' : v; }
+    setAssignment(gp, v) { this.padMap[this.padKey(gp)] = v; FF.store.set('padmap', this.padMap); }
 
     poll() {
       let list = [];
@@ -69,7 +75,7 @@
         for (const k in cur) { edge[k] = cur[k] && !prev[k]; if (edge[k]) any = true; }
         if (any) this.device = 'pad';
         this.padPrev[gp.index] = cur;
-        return { cur, edge, index: gp.index };
+        return { cur, edge, index: gp.index, id: gp.id, gp, any: Object.values(cur).some(Boolean) };
       });
     }
 
@@ -92,17 +98,55 @@
       c.swapP |= e.y; c.mergeP |= e.lb;
     }
 
-    controls(mode) {
+    // Kanten aus den Zählern eines virtuellen Controllers ableiten.
+    virtualEdges(name, st) {
+      const last = this.lastN[name] || (this.lastN[name] = {});
+      const e = {};
+      for (const k of PRESS_KEYS) { e[k] = (st.n[k] || 0) > (last[k] || 0) ? 1 : 0; last[k] = st.n[k] || 0; }
+      return e;
+    }
+
+    addVirtual(c, st, e) {
+      c.left |= st.left; c.right |= st.right; c.up |= st.up; c.down |= st.down;
+      c.grip |= st.grip; c.jumpHold |= st.jump;
+      c.jumpP |= e.jump | e.jumpk; c.jumpBtnP |= e.jump; c.lassoP |= e.lasso; c.knotP |= e.knot;
+      c.downP |= e.down; c.swapP |= e.swap; c.mergeP |= e.merge;
+    }
+
+    setVirtual(name, slot, state) {
+      if (!state) { delete this.virtual[name]; delete this.lastN[name]; return; }
+      this.virtual[name] = { slot, state };
+    }
+
+    // Steuerung für beide Figuren. opts.local = false: keine Tastatur/Gamepads dieses Geräts (Fernseher-Gast).
+    controls(mode, opts = {}) {
       const out = [FF.makeCtl(), FF.makeCtl()];
       for (const c of out) for (const k in c) c[k] = 0;
+      const local = opts.local !== false;
+      this.vEdges = {};
+      for (const name in this.virtual) {
+        const v = this.virtual[name];
+        const e = this.virtualEdges(name, v.state);
+        this.vEdges[name] = e;
+        const slot = mode === 'solo' ? 0 : v.slot;
+        if (slot === 0 || slot === 1) this.addVirtual(out[slot], v.state, e);
+      }
+      if (!local) return out;
       if (mode === 'solo') {
         this.addKeys(out[0], KEYS.solo);
-        for (const p of this.pads) this.addPad(out[0], p);
+        for (const p of this.pads) if (this.assignment(p) !== 'off') this.addPad(out[0], p);
       } else {
-        this.addKeys(out[0], KEYS.p1);
-        this.addKeys(out[1], KEYS.p2);
-        if (this.pads.length >= 2) { this.addPad(out[0], this.pads[0]); this.addPad(out[1], this.pads[1]); }
-        else if (this.pads.length === 1) this.addPad(out[1], this.pads[0]);
+        if (!opts.noKeysP1) this.addKeys(out[0], KEYS.p1);
+        if (!opts.noKeysP2) this.addKeys(out[1], KEYS.p2);
+        const auto = this.pads.filter((p) => this.assignment(p) === 'auto');
+        for (const p of this.pads) {
+          const a = this.assignment(p);
+          if (a === 0 || a === 1) this.addPad(out[a], p);
+        }
+        // Ohne feste Zuordnung: zwei Gamepads -> Rot und Blau, eines -> der freie Platz
+        const free = opts.freeSlots || [0, 1];
+        if (auto.length >= 2) { this.addPad(out[free[0] ?? 0], auto[0]); this.addPad(out[free[1] ?? 1], auto[1]); }
+        else if (auto.length === 1) this.addPad(out[free.length === 1 ? free[0] : 1], auto[0]);
       }
       return out;
     }
@@ -112,6 +156,7 @@
       for (const p of this.pads) {
         g.pause |= p.edge.start; g.up |= p.edge.up; g.down |= p.edge.down; g.ok |= p.edge.a; g.back |= p.edge.b;
       }
+      for (const name in this.vEdges || {}) g.pause |= this.vEdges[name].pause;
       g.up |= this.e(['ArrowUp']); g.down |= this.e(['ArrowDown']);
       return g;
     }
@@ -120,6 +165,19 @@
       if (this.device === 'pad') return LABELS.pad;
       if (this.device === 'touch') return LABELS.touch;
       return LABELS.kb[mode] || LABELS.kb.solo;
+    }
+
+    // Rückmeldung per Vibration: Gamepads des Spielers und das Handy selbst.
+    rumble(slot, strong, ms) {
+      for (const p of this.pads) {
+        const a = this.assignment(p);
+        if (a === 'off' || (typeof a === 'number' && a !== slot)) continue;
+        const act = p.gp && p.gp.vibrationActuator;
+        if (act && act.playEffect) {
+          try { act.playEffect('dual-rumble', { duration: ms, strongMagnitude: strong, weakMagnitude: Math.min(1, strong + 0.2) }); } catch (e) { /* nicht unterstützt */ }
+        }
+      }
+      if (this.device === 'touch' && navigator.vibrate) { try { navigator.vibrate(Math.round(ms * 0.6)); } catch (e) { /* egal */ } }
     }
 
     endFrame() { this.hit.clear(); }
