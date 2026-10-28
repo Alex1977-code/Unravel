@@ -216,6 +216,7 @@
       }
       // Kleine Bildschirme etwas näher heranholen, damit die Figuren gut sichtbar bleiben.
       if (!(opts && opts.pan) && this.H / this.dpr < 520) th *= 0.82;
+      th *= this.zoom || 1;
       th = Math.min(1100, Math.max(th, 430 / aspect));
       const c = this.cam;
       if (this.snap) { c.x = tx; c.y = ty; c.h = th; this.snap = false; }

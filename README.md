@@ -47,9 +47,18 @@ Ins Ziel müssen immer beide.
 
 `Esc` oder `Start` pausiert, `M` schaltet den Ton.
 
-## Stimmung
+## Grafik
 
-Die Grafik setzt auf Gegenlicht, Dunst und Tiefenunschärfe: ferne Ebenen werden klein gerendert und weichgezeichnet, davor stehen unscharfe Gräser und Zweige. Dazu kommen weiche Lichtbahnen, Lichtkreise, Farbkorrektur und Filmkorn. Die Figuren bekommen einen Lichtsaum von der Sonnenseite. Läuft ein Gerät zu langsam, schaltet das Spiel selbst auf einfachere Grafik um.
+Gespielt wird auf einer Ebene, dargestellt wird die Welt in 3D (WebGL mit Three.js), ähnlich wie bei Unravel:
+
+- Felsblöcke reichen nach hinten in die Tiefe. Ihre Oberflächen sind prozedurale Erd-, Stein- und Moostexturen mit Relief, darauf stehen Grashalme, die sich im Wind bewegen, sowie Steine und hängende Wurzeln.
+- Hinter der Spielebene stehen Laub- und Nadelbäume, Birken oder Herbstbäume in mehreren Reihen, dahinter Berge im Nebel.
+- Die Sonne wirft Schatten, ein Gegenlicht zeichnet Lichtkanten. Wasser spiegelt den Himmel. Dazu kommen Tiefenunschärfe, Leuchten, Vignette und Filmkorn.
+- Die Figuren bestehen aus echten 3D-Wollfäden mit Stoffglanz, die Fäden zwischen ihnen sind 3D-Röhren.
+
+Unter „Grafik“ (Titel und Pause) lässt sich die Stufe wählen: 3D hoch, mittel, einfach oder 2D. Auf Handys und Fernsehern startet das Spiel mit „mittel“. Läuft es zu langsam, schaltet es selbst eine Stufe herunter. Ohne echte Grafikkarte, etwa bei reinem Software-Rendering, nimmt es die 2D-Grafik. Mit `?gfx=2d` oder `?gfx=3d` in der Adresse lässt sich das erzwingen.
+
+## Klang
 
 Musik und Geräusche werden im Browser erzeugt: gezupfte Gitarre (Karplus-Strong), eine Fidel mit Vibrato und ein Bordun, je Level in eigener Tonart. Dazu Wind, Vögel, Wasser, Frösche, Krähen, Grillen und eine Eule, außerdem Schritte, das Knarzen des Fadens beim Klettern und Rauschen beim Schwingen.
 
@@ -69,15 +78,17 @@ Musik und Geräusche werden im Browser erzeugt: gezupfte Gitarre (Karplus-Strong
 | `src/physics.js` | Kollision, Kisten schieben, Faden mit Umwicklung an Kanten |
 | `src/game.js` | Spiellogik: Figuren, Lasso, Knoten, Huckepack, Gefahren, Ziel |
 | `src/levels.js` | Leveldaten und Hinweistafeln |
-| `src/render.js` | Canvas-Grafik: Parallax-Landschaften, Figuren, Effekte |
+| `src/render3d.js` | 3D-Grafik (Three.js): Gelände, Bäume, Licht, Wasser, Woll-Figuren |
+| `src/textures.js` | Prozedurale Texturen mit Normal-Maps |
+| `src/render.js` | 2D-Grafik (Ausweichlösung) und die Kamera, Hinweise als Overlay |
 | `src/input.js` | Tastatur, Gamepads, virtuelle Controller, Vibration |
 | `src/touch.js` | Touch-Joystick und Knöpfe (auch der Handy-Controller) |
 | `src/net.js` | Online-Spiel: Räume, Eingaben, Zustandsbilder |
 | `src/audio.js` | Musik, Naturgeräusche, Effekte |
 | `src/main.js` | Menüs, HUD, Netzwerkrollen, Hauptschleife |
-| `vendor/` | PeerJS und qrcode-generator (MIT) |
+| `vendor/` | Three.js (gebündelt aus `tools/three-entry.js`), PeerJS, qrcode-generator (alle MIT) |
 
-Die Physik läuft mit festem Zeitschritt (120 Hz). Der Faden ist ein Seil mit Höchstlänge, das sich an Blockecken einhakt und wieder löst, so dass man über Kanten abseilen und pendeln kann.
+Die Physik läuft mit festem Zeitschritt (120 Hz) und ist unabhängig von der Grafik. Der Faden ist ein Seil mit Höchstlänge, das sich an Blockecken einhakt und wieder löst, so dass man über Kanten abseilen und pendeln kann.
 
 ## Tests
 

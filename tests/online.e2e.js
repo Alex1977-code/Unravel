@@ -24,10 +24,10 @@ const web = http.createServer((req, res) => {
   const app = express();
   const ps = app.listen(9010, '127.0.0.1');
   app.use('/', ExpressPeerServer(ps, { path: '/' }));
-  const q = 'peerhost=127.0.0.1&peerport=9010&peerpath=/';
+  const q = 'peerhost=127.0.0.1&peerport=9010&peerpath=/&gfx=2d';
   const b = await chromium.launch();
   const errs = [];
-  const open = async (url, opts) => { const c = await b.newContext(opts || { viewport: { width: 1000, height: 600 } }); const p = await c.newPage(); p.on('pageerror', (e) => errs.push(e.message)); await p.goto(url); return p; };
+  const open = async (url, opts) => { const c = await b.newContext(opts || { viewport: { width: 1000, height: 600 } }); const p = await c.newPage(); p.on('pageerror', (e) => errs.push(e.message)); await p.goto(url, { waitUntil: 'domcontentloaded' }); return p; };
   try {
     // Online: Gastgeber + Mitspieler mit eigenem Bildschirm
     const host = await open(`http://127.0.0.1:8790/index.html?${q}`);

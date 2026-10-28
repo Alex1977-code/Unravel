@@ -5,9 +5,16 @@
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => Array.from(document.querySelectorAll(s));
   const cv = $('#game');
-  const R = new FF.Renderer(cv);
-  const input = new FF.Input();
   const params = new URLSearchParams(location.search);
+  // 3D (WebGL) wenn möglich, sonst die 2D-Grafik
+  let R = null;
+  const gfxPref = params.get('gfx') || FF.store.get('gfx', '3d');
+  if (gfxPref !== '2d' && FF.has3D && FF.has3D(params.get('gfx') === '3d')) {
+    try { R = new FF.Renderer3D($('#gl'), cv); } catch (e) { console.warn('3D nicht verfügbar', e); R = null; }
+  }
+  if (!R) { $('#gl').hidden = true; R = new FF.Renderer(cv); }
+  const is3D = !!FF.Renderer3D && R instanceof FF.Renderer3D;
+  const input = new FF.Input();
   const isTouch = (typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window;
   if (isTouch) { input.device = 'touch'; document.body.classList.add('touch'); }
   R.keyLabels = (m) => input.labels(net && net.role === 'guest' ? 'solo' : m);
@@ -508,6 +515,25 @@
   addEventListener('gamepadconnected', (e) => { toast(`Controller verbunden: ${(e.gamepad.id || '').replace(/\(.*?\)/g, '').trim().slice(0, 30)}`); if (screen === 'lobby') renderLobby(); });
   addEventListener('gamepaddisconnected', () => toast('Controller getrennt.'));
 
+  // ------------------------------------------------------------ Grafikstufe
+  const GFX = is3D ? [['high', '3D hoch'], ['medium', '3D mittel'], ['low', '3D einfach'], ['2d', '2D']] : [['high', '2D'], ['3d', '3D']];
+  function gfxName() {
+    if (!is3D) return 'Grafik: 2D';
+    const e = GFX.find((x) => x[0] === R.quality);
+    return 'Grafik: ' + (e ? e[1] : R.quality);
+  }
+  function syncGfx() { $$('#btn-gfx, #btn-gfx2').forEach((b) => (b.textContent = gfxName())); }
+  function cycleGfx() {
+    if (!is3D) { FF.store.set('gfx', '3d'); location.reload(); return; }
+    const order = ['high', 'medium', 'low', '2d'];
+    const next = order[(order.indexOf(R.quality) + 1) % order.length];
+    if (next === '2d') { FF.store.set('gfx', '2d'); location.reload(); return; }
+    FF.store.set('gfx', '3d');
+    R.quality = next; FF.store.set('quality3d', next); R.level = null; R.resize();
+    syncGfx();
+  }
+  syncGfx();
+
   // ------------------------------------------------------------ Aktionen
   function act(a) {
     FF.audio.init();
@@ -519,6 +545,7 @@
       case 'pads': show('pads'); break;
       case 'help': returnTo = screen; show('help'); break;
       case 'fullscreen': goFullscreen(false); break;
+      case 'gfx': cycleGfx(); break;
       case 'back':
         if (screen === 'help') show(returnTo);
         else if (screen === 'levels' && net && net.role === 'host') show('lobby');
@@ -643,7 +670,7 @@
 
     // Läuft das Gerät zu langsam? Dann auf einfache Grafik umschalten.
     if (dt > 1 / 38) slowT += dt; else slowT = Math.max(0, slowT - dt * 0.5);
-    if (slowT > 2.5 && R.quality !== 'low') { R.setQuality('low'); toast('Grafik vereinfacht, damit es flüssig bleibt.'); }
+    if (slowT > 2.5 && R.quality !== 'low') { R.setQuality('low'); slowT = 0; syncGfx(); toast('Grafik vereinfacht, damit es flüssig bleibt.'); }
 
     hudT -= dt;
     if (hudT <= 0) { updateHud(); hudT = 0.25; }

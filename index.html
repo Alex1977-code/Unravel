@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<canvas id="gl" aria-hidden="true"></canvas>
 <canvas id="game" aria-label="Spielfeld"></canvas>
 
 <div id="hud" hidden>
@@ -71,6 +72,7 @@
         </div>
         <div class="menu-row">
           <button type="button" class="btn" data-act="pads">Controller</button>
+          <button type="button" class="btn" data-act="gfx" id="btn-gfx2">Grafik</button>
           <button type="button" class="btn" data-act="help">Steuerung</button>
           <button type="button" class="btn" data-act="fullscreen">Vollbild</button>
         </div>
@@ -235,6 +237,7 @@
         <button type="button" class="btn host-only" data-act="checkpoint">Zum letzten Zwischenstand</button>
         <button type="button" class="btn host-only" data-act="restart">Level neu beginnen</button>
         <button type="button" class="btn" data-act="help">Steuerung</button>
+        <button type="button" class="btn" data-act="gfx" id="btn-gfx">Grafik</button>
         <button type="button" class="btn" data-act="menu">Hauptmenü</button>
       </div>
     </div>
@@ -253,6 +256,7 @@
   </section>
 </main>
 
+<script src="vendor/three.bundle.min.js"></script>
 <script src="src/core.js"></script>
 <script src="src/physics.js"></script>
 <script src="src/levels.js"></script>
@@ -262,6 +266,8 @@
 <script src="src/touch.js"></script>
 <script src="src/net.js"></script>
 <script src="src/render.js"></script>
+<script src="src/textures.js"></script>
+<script src="src/render3d.js"></script>
 <script src="src/main.js"></script>
 </body>
 </html>

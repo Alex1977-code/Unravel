@@ -29,7 +29,8 @@ body {
 }
 [hidden] { display: none !important; }
 
-#game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+#game, #gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+#gl { background: var(--night); }
 
 /* ---------- Bildschirme ---------- */
 .screen {
