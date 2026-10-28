@@ -116,14 +116,15 @@
 
   // ------------------------------------------------------------ Faden-Röhre ohne Neuanlage pro Bild
   class RopeMesh {
-    constructor(THREE, material, rings = 220, radial = 6) {
+    constructor(THREE, material, rings = 220, radial = 8) {
       this.rings = rings; this.radial = radial;
       const nv = rings * (radial + 1);
       const geo = new THREE.BufferGeometry();
-      this.pos = new Float32Array(nv * 3); this.nor = new Float32Array(nv * 3); this.uv = new Float32Array(nv * 2);
+      this.pos = new Float32Array(nv * 3); this.nor = new Float32Array(nv * 3); this.uv = new Float32Array(nv * 2); this.col = new Float32Array(nv * 3);
       geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
       geo.setAttribute('normal', new THREE.BufferAttribute(this.nor, 3).setUsage(THREE.DynamicDrawUsage));
       geo.setAttribute('uv', new THREE.BufferAttribute(this.uv, 2).setUsage(THREE.DynamicDrawUsage));
+      geo.setAttribute('color', new THREE.BufferAttribute(this.col, 3).setUsage(THREE.DynamicDrawUsage));
       const idx = [];
       for (let i = 0; i < rings - 1; i++) {
         for (let k = 0; k < radial; k++) {
@@ -138,11 +139,11 @@
       this.mesh.castShadow = true;
       this.mesh.visible = false;
     }
-    // pts: flaches Array [x0,y0,z0, x1,y1,z1, ...]
-    update(pts, n, radius, uScale) {
+    // pts: flaches Array [x0,y0,z0, x1,y1,z1, ...]; Farbe läuft von cA (Anfang) nach cB (Ende)
+    update(pts, n, radius, uScale, cA, cB) {
       n = Math.min(n, this.rings);
       if (n < 2) { this.mesh.visible = false; return; }
-      const R = this.radial, P = this.pos, N = this.nor, U = this.uv;
+      const R = this.radial, P = this.pos, N = this.nor, U = this.uv, C = this.col;
       let len = 0;
       for (let i = 0; i < n; i++) {
         const i0 = Math.max(0, i - 1) * 3, i1 = Math.min(n - 1, i + 1) * 3;
@@ -160,6 +161,13 @@
           U[v * 2] = len * (uScale || 0.05); U[v * 2 + 1] = k / R;
         }
       }
+      // Farbverlauf entlang der Länge (beim gemeinsamen Faden von Rot nach Blau)
+      for (let i = 0; i < n; i++) {
+        const t = cA === cB ? 0 : FF.clamp((i / (n - 1) - 0.2) / 0.6, 0, 1), s = t * t * (3 - 2 * t);
+        const r = cA.r + (cB.r - cA.r) * s, g = cA.g + (cB.g - cA.g) * s, b = cA.b + (cB.b - cA.b) * s;
+        for (let k = 0; k <= R; k++) { const v = (i * (R + 1) + k) * 3; C[v] = r; C[v + 1] = g; C[v + 2] = b; }
+      }
+      this.geo.attributes.color.needsUpdate = true;
       this.geo.attributes.position.needsUpdate = true;
       this.geo.attributes.normal.needsUpdate = true;
       this.geo.attributes.uv.needsUpdate = true;
@@ -444,7 +452,7 @@
       this.buildComposer();
       this.ropes = [];
       for (let i = 0; i < 8; i++) {
-        const r = new RopeMesh(THREE, this.mats.yarn[0]);
+        const r = new RopeMesh(THREE, this.mats.rope);
         this.scene.add(r.mesh);
         this.ropes.push(r);
       }
@@ -504,7 +512,8 @@
       weatherSurface(m.root, wu, { wet: 0.7, puddle: 0, snow: 0.6 });
       m.yarn = [0, 1].map((i) => this.yarnMaterial(FF.COLORS[i]));
       m.yarnDark = [0, 1].map((i) => this.yarnMaterial(FF.COLORS_DARK[i]));
-      m.tether = this.gradientYarn();
+      m.rope = this.ropeMaterial();
+      m.ropeCol = FF.COLORS.map((c) => col(c));
       return m;
     }
 
@@ -1503,7 +1512,7 @@
     // ------------------------------------------------------------ Fäden
     // Durchhängende Kurve durch die Seilpunkte in den Puffer schreiben (wie im 2D-Renderer)
     ropePoints(pts2d, slack, sagK) {
-      const out = this.ropeBuf, max = out.length / 3;
+      const out = this.ropeBuf, max = out.length / 3, solids = this.game ? this.game.world.solids : [];
       let total = 0, n = 0;
       for (let i = 1; i < pts2d.length; i++) total += Math.hypot(pts2d[i][0] - pts2d[i - 1][0], pts2d[i][1] - pts2d[i - 1][1]);
       out[0] = pts2d[0][0]; out[1] = -pts2d[0][1]; out[2] = ZP; n = 1;
@@ -1516,8 +1525,10 @@
         const mx = (ax + bx) / 2, my = (ay + by) / 2 + sag;
         for (let k = 1; k <= segs && n < max; k++) {
           const t = k / segs;
-          out[n * 3] = (1 - t) * (1 - t) * ax + 2 * (1 - t) * t * mx + t * t * bx;
-          out[n * 3 + 1] = -((1 - t) * (1 - t) * ay + 2 * (1 - t) * t * my + t * t * by);
+          const px = (1 - t) * (1 - t) * ax + 2 * (1 - t) * t * mx + t * t * bx;
+          const py = FF.ropeRest(solids, px, (1 - t) * (1 - t) * ay + 2 * (1 - t) * t * my + t * t * by, ay, by, 1.2);
+          out[n * 3] = px;
+          out[n * 3 + 1] = -py;
           out[n * 3 + 2] = ZP + Math.sin(t * Math.PI) * 1.2;
           n++;
         }
@@ -1525,24 +1536,51 @@
       return n;
     }
 
-    rope(i, pts2d, slack, sagK, mat, radius) {
+    rope(i, pts2d, slack, sagK, cA, cB, radius) {
       const r = this.ropes[i];
       if (!r) return;
-      r.mesh.material = mat;
-      r.update(this.ropeBuf, this.ropePoints(pts2d, slack, sagK), radius, 0.08);
+      r.update(this.ropeBuf, this.ropePoints(pts2d, slack, sagK), radius, 1 / 15, cA, cB);
     }
 
-    gradientYarn() {
-      const THREE = this.THREE;
-      const c = document.createElement('canvas');
-      c.width = 256; c.height = 4;
-      const x = c.getContext('2d');
-      const gr = x.createLinearGradient(0, 0, 256, 0);
-      gr.addColorStop(0, FF.COLORS[0]); gr.addColorStop(1, FF.COLORS[1]);
-      x.fillStyle = gr; x.fillRect(0, 0, 256, 4);
-      const t = new THREE.CanvasTexture(c);
-      t.colorSpace = THREE.SRGBColorSpace;
-      return new THREE.MeshPhysicalMaterial({ map: t, roughness: 0.8, sheen: 1, sheenRoughness: 0.5, sheenColor: col('#ffffff'), normalMap: this.tex.yarn.normal });
+    // Wollfaden: zwei miteinander verdrehte Stränge aus feinen Fasern, dazu einzelne abstehende Härchen.
+    // Die Textur ist grau, die Farbe kommt aus den Eckpunkten (Figurfarbe bzw. Verlauf Rot → Blau).
+    ropeMaterial() {
+      const THREE = this.THREE, W = 256, H = 64;
+      const rnd = FF.rng(41);
+      const fib = new Float32Array(97); for (let i = 0; i < fib.length; i++) fib[i] = rnd();
+      const fiber = (p) => { const i = Math.floor(p) % 96, f = p - Math.floor(p); return fib[i] + (fib[i + 1] - fib[i]) * f; };
+      const hgt = new Float32Array(W * H), gray = new Float32Array(W * H);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const u = x / W, v = y / H;
+        const phase = u * 2 + v;                       // zwei Drehungen je Kachel, schräg um den Faden
+        const ply = (phase * 2) % 1;                  // zwei Stränge nebeneinander
+        const ridge = Math.pow(Math.sin(Math.PI * ply), 0.55);
+        const fb = fiber(((phase * 2 * 24) % 96 + 96) % 96 + ((u * 7) % 1) * 0.3);
+        const hh = ridge * 0.8 + fb * 0.2;
+        hgt[y * W + x] = hh;
+        gray[y * W + x] = 0.5 + ridge * 0.42 * (0.8 + fb * 0.2) + (rnd() < 0.015 ? 0.1 : 0);
+      }
+      const cm = document.createElement('canvas'), cn = document.createElement('canvas');
+      cm.width = cn.width = W; cm.height = cn.height = H;
+      const im = cm.getContext('2d').createImageData(W, H), nm = cn.getContext('2d').createImageData(W, H);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const i = y * W + x, o = i * 4;
+        const g = Math.min(255, gray[i] * 255);
+        im.data[o] = im.data[o + 1] = im.data[o + 2] = g; im.data[o + 3] = 255;
+        const dx = hgt[y * W + ((x + 1) % W)] - hgt[y * W + ((x + W - 1) % W)];
+        const dy = hgt[((y + 1) % H) * W + x] - hgt[((y + H - 1) % H) * W + x];
+        let nx = -dx * 3.2, ny = -dy * 3.2, nz = 1;
+        const l = Math.hypot(nx, ny, nz); nx /= l; ny /= l; nz /= l;
+        nm.data[o] = (nx * 0.5 + 0.5) * 255; nm.data[o + 1] = (ny * 0.5 + 0.5) * 255; nm.data[o + 2] = (nz * 0.5 + 0.5) * 255; nm.data[o + 3] = 255;
+      }
+      cm.getContext('2d').putImageData(im, 0, 0); cn.getContext('2d').putImageData(nm, 0, 0);
+      const map = new THREE.CanvasTexture(cm), nmap = new THREE.CanvasTexture(cn);
+      map.colorSpace = THREE.SRGBColorSpace;
+      for (const t of [map, nmap]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; }
+      return new THREE.MeshPhysicalMaterial({
+        vertexColors: true, map, normalMap: nmap, normalScale: new THREE.Vector2(1.3, 1.3),
+        roughness: 0.85, sheen: 0.35, sheenRoughness: 0.6, sheenColor: col('#4a4a4a'),
+      });
     }
 
     // ------------------------------------------------------------ Krabben und Fledermäuse
@@ -1986,11 +2024,14 @@
         const sag = (load !== null ? 4 : 0) + Math.sin(this.clock * 34) * b.wob * 7;
         const cx = load !== null ? load : (b.ax + b.bx) / 2;
         const cy = (load !== null ? FF.bridgeY(b, load) : (b.ay + b.by) / 2) + sag * 2;
-        this.rope(ri++, [[b.ax, b.ay], [cx, cy], [b.bx, b.by]], 0, 0, this.mats.yarn[b.owner], 1.4);
+        const oc = this.mats.ropeCol[b.owner];
+        this.rope(ri++, [[b.ax, b.ay], [cx, cy], [b.bx, b.by]], 0, 0, oc, oc, 1.4);
       }
       if (g.tetherOn) {
         const T = g.tether;
-        this.rope(ri++, T.points(), Math.min(Math.max(0, T.len - T.total), 260), 0.75, this.mats.tether, 1.0);
+        // Gemeinsamer Faden: am roten Ende rot, am blauen blau
+        const ca = this.mats.ropeCol[T.a.body ? T.a.body.id : 0], cb = this.mats.ropeCol[T.b.body ? T.b.body.id : 1];
+        this.rope(ri++, T.points(), Math.min(Math.max(0, T.len - T.total), 260), 0.75, ca, cb, 1.25);
       }
       for (const p of g.players) {
         if (!p.lasso) continue;
@@ -1998,8 +2039,9 @@
         const kk = Math.min(1, p.throwT / 0.12);
         if (kk < 1) {
           const a = pts[0], b = pts[pts.length - 1];
-          this.rope(ri++, [a, [a[0] + (b[0] - a[0]) * kk, a[1] + (b[1] - a[1]) * kk - Math.sin(kk * Math.PI) * 20]], 0, 0, this.mats.yarn[p.id], 0.9);
-        } else this.rope(ri++, pts, Math.min(Math.max(0, p.lasso.len - p.lasso.total), 200), 0.7, this.mats.yarn[p.id], 0.95);
+          const lc = this.mats.ropeCol[p.id];
+          this.rope(ri++, [a, [a[0] + (b[0] - a[0]) * kk, a[1] + (b[1] - a[1]) * kk - Math.sin(kk * Math.PI) * 20]], 0, 0, lc, lc, 1.1);
+        } else this.rope(ri++, pts, Math.min(Math.max(0, p.lasso.len - p.lasso.total), 200), 0.7, this.mats.ropeCol[p.id], this.mats.ropeCol[p.id], 1.15);
       }
       for (; ri < this.ropes.length; ri++) this.ropes[ri].mesh.visible = false;
       g.players.forEach((p, i) => this.poseYarny(this.yarnies[i], p, g, dt));

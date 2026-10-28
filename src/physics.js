@@ -57,6 +57,15 @@
     return { x: x - w / 2, y: c.y - h, w, h, dir, cx: x };
   };
 
+  // Durchhängender Faden liegt auf dem Boden auf, statt in ihn einzuschneiden: Verläuft ein Fadenstück über eine
+  // Oberseite (beide Enden auf oder über ihr), wird ein Punkt darunter auf die Oberseite gehoben. (Nur Darstellung.)
+  FF.ropeRest = function (solids, x, y, ay, by, r) {
+    for (const s of solids) {
+      if (x > s.x && x < s.x + s.w && y > s.y - r && ay <= s.y + 3 && by <= s.y + 3) y = s.y - r;
+    }
+    return y;
+  };
+
   FF.bridgeY = function (br, x) {
     const x0 = Math.min(br.ax, br.bx), x1 = Math.max(br.ax, br.bx);
     if (x1 - x0 < 8 || x < x0 + 2 || x > x1 - 2) return null;

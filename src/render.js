@@ -1177,13 +1177,33 @@
       ctx.moveTo(pts[0][0], pts[0][1]);
       let total = 0;
       for (let i = 1; i < pts.length; i++) total += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+      const solids = this.game ? this.game.world.solids : [];
       for (let i = 1; i < pts.length; i++) {
         const [ax, ay] = pts[i - 1], [bx, by] = pts[i];
         const L = Math.hypot(bx - ax, by - ay);
         const share = total > 0 ? (slack * L) / total : 0;
         const sag = Math.sqrt(Math.max(0, share) * Math.max(L, 1)) * sagK;
-        ctx.quadraticCurveTo((ax + bx) / 2, (ay + by) / 2 + sag, bx, by);
+        const mx = (ax + bx) / 2, my = (ay + by) / 2 + sag;
+        const segs = Math.max(2, Math.min(24, Math.round(L / 10)));
+        for (let k = 1; k <= segs; k++) {
+          const t = k / segs;
+          const px = (1 - t) * (1 - t) * ax + 2 * (1 - t) * t * mx + t * t * bx;
+          ctx.lineTo(px, FF.ropeRest(solids, px, (1 - t) * (1 - t) * ay + 2 * (1 - t) * t * my + t * t * by, ay, by, 1));
+        }
       }
+    }
+
+    // Wollfaden: dunkle Kante, Grundfarbe, darüber helle und dunkle Windungen wie bei gedrehtem Garn
+    yarnStroke(ctx, path, color, edge, w) {
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.strokeStyle = edge; ctx.lineWidth = w + 1.4; path(); ctx.stroke();
+      ctx.strokeStyle = color; ctx.lineWidth = w; path(); ctx.stroke();
+      ctx.lineCap = 'butt';
+      ctx.setLineDash([w * 0.8, w * 1.2]);
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = w * 0.5; path(); ctx.stroke();
+      ctx.lineDashOffset = w;
+      ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = w * 0.55; path(); ctx.stroke();
+      ctx.setLineDash([]); ctx.lineDashOffset = 0; ctx.lineCap = 'round';
     }
 
     drawTether(ctx, g) {
@@ -1192,22 +1212,8 @@
       const slack = Math.max(0, T.len - T.total);
       const [a, b] = [pts[0], pts[pts.length - 1]];
       const gr = ctx.createLinearGradient(a[0], a[1], b[0], b[1]);
-      gr.addColorStop(0, FF.COLORS[0]); gr.addColorStop(1, FF.COLORS[1]);
-      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      ctx.strokeStyle = 'rgba(20,14,18,0.35)';
-      ctx.lineWidth = 3.4;
-      this.yarnPath(ctx, pts, Math.min(slack, 260), 0.75);
-      ctx.stroke();
-      ctx.strokeStyle = gr;
-      ctx.lineWidth = 2;
-      this.yarnPath(ctx, pts, Math.min(slack, 260), 0.75);
-      ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,255,255,0.28)';
-      ctx.lineWidth = 0.8;
-      ctx.setLineDash([2, 4]);
-      this.yarnPath(ctx, pts, Math.min(slack, 260), 0.75);
-      ctx.stroke();
-      ctx.setLineDash([]);
+      gr.addColorStop(0.15, FF.COLORS[0]); gr.addColorStop(0.85, FF.COLORS[1]);
+      this.yarnStroke(ctx, () => this.yarnPath(ctx, pts, Math.min(slack, 260), 0.75), gr, 'rgba(20,14,18,0.4)', 2.4);
     }
 
     drawLasso(ctx, p) {
@@ -1224,10 +1230,8 @@
           return;
         }
         const slack = Math.max(0, p.lasso.len - p.lasso.total);
-        ctx.strokeStyle = FF.COLORS_DARK[p.id]; ctx.lineWidth = 3.2;
-        this.yarnPath(ctx, pts, Math.min(slack, 200), 0.7); ctx.stroke();
+        this.yarnStroke(ctx, () => this.yarnPath(ctx, pts, Math.min(slack, 200), 0.7), FF.COLORS[p.id], FF.COLORS_DARK[p.id], 2.1);
         ctx.strokeStyle = FF.COLORS[p.id]; ctx.lineWidth = 1.9;
-        this.yarnPath(ctx, pts, Math.min(slack, 200), 0.7); ctx.stroke();
         const e = pts[pts.length - 1];
         ctx.beginPath(); ctx.arc(e[0], e[1] + 1, 4.6, 0, TAU); ctx.stroke();
       } else if (p.miss) {

@@ -12,6 +12,8 @@ Läuft komplett im Browser und braucht keine Installation und keinen Build-Schri
 npx serve .        # oder: python3 -m http.server
 ```
 
+**Offline / Flugzeugmodus:** Die GitHub-Pages-Seite legt beim ersten Besuch mit Netz alle Dateien ab (Service Worker `sw.js`). Danach startet das Spiel auch ohne Netz, am bequemsten über „Zum Home-Bildschirm“. Mit Netz kommt immer die neueste Version; sie wird im Menü automatisch geladen. Nur das Online-Spiel braucht natürlich eine Verbindung.
+
 Eine einzelne, verschickbare HTML-Datei mit allem drin erzeugt:
 
 ```sh

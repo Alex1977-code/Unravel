@@ -727,6 +727,28 @@
   show('title');
   requestAnimationFrame(loop);
 
+  // Offline spielbar: Service Worker legt alle Dateien ab (nicht in der Einzeldatei-Fassung und nicht von der Festplatte)
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && !FF.ASSET_DATA) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+
+  // Neue Version auf dem Server? Dann im Menü neu laden, nie mitten im Level. Ohne Netz passiert einfach nichts.
+  const myVersion = window.FF_VERSION;
+  function checkVersion() {
+    if (!myVersion || !/^https?:$/.test(location.protocol) || (navigator.onLine === false)) return;
+    fetch('version.json?t=' + Date.now(), { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((v) => {
+        if (v && v.v && v.v !== myVersion && ['title', 'levels', 'help'].includes(screen) && !net && !params.get('join') && !params.get('tv')) {
+          location.replace(location.pathname + '?v=' + encodeURIComponent(v.v));
+        }
+      })
+      .catch(() => {});
+  }
+  checkVersion();
+  setInterval(checkVersion, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkVersion(); });
+
   // Einstieg über Link: ?join=CODE (Mitspielen/Controller) oder ?tv=1&code=CODE (Fernseher)
   const jc = FF.cleanCode(params.get('join'));
   if (jc) {
