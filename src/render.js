@@ -56,10 +56,14 @@
       this.t = 0;
       this.level = null;
       this.keyLabels = null;
+      this.weatherPref = 'auto';
+      this.ws = new FF.WeatherState();
+      this.w2d = new FF.Weather2D();
       this.resize();
     }
 
     setQuality(q) { this.quality = q; this.resize(); }
+    setWeather(pref) { this.weatherPref = pref; }
 
     resize() {
       const dpr = this.quality === 'low' ? 1 : Math.min(2, (typeof devicePixelRatio !== 'undefined' && devicePixelRatio) || 1);
@@ -249,7 +253,7 @@
       this.view = view;
       const Wd = g.world;
 
-      this.drawAmbient(ctx, g, sc);
+      if (FF.ambientOk(this.th.amb, this.ws.v)) this.drawAmbient(ctx, g, sc);
       this.drawGoal(ctx, g);
       for (const cp of g.checkpoints) this.drawCheckpoint(ctx, cp);
       for (const s of g.signs) this.drawSignPost(ctx, s);
@@ -274,6 +278,13 @@
       if (hi) this.drawFgLayer(ctx, g, sc);
       if (hi) this.drawBokeh(ctx);
       this.drawGrade(ctx, hi);
+      // Wetter: Abdunkeln bei Wolken, Regen oder Schnee, Blitz
+      const wv = this.ws.update(FF.weatherOf(g.L.theme, this.weatherPref), dt);
+      if (FF.audio && FF.audio.setWeather) FF.audio.setWeather(wv);
+      if (wv.cloud > 0.02) { ctx.fillStyle = `rgba(28,34,44,${wv.cloud * 0.3})`; ctx.fillRect(0, 0, W, H); }
+      if (wv.cover > 0.02) { ctx.fillStyle = `rgba(225,232,245,${wv.cover * 0.12})`; ctx.fillRect(0, 0, W, H); }
+      this.w2d.draw(ctx, W, H, wv, dt, this.t);
+      FF.drawBolt(ctx, W, H, this.ws);
 
       if (!opts.pan) {
         world();

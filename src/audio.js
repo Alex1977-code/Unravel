@@ -83,6 +83,8 @@
       this.wind = bed('bandpass', 380, 0.6);
       this.wind2 = bed('lowpass', 180, 0.4);
       this.water = bed('lowpass', 520, 0.7);
+      this.rainHi = bed('highpass', 2600, 0.4);
+      this.rainLo = bed('bandpass', 900, 0.5);
       this.swoosh = bed('bandpass', 900, 0.8);
       this.swoosh.g.disconnect(); this.swoosh.g.connect(this.sfxBus);
     },
@@ -245,14 +247,31 @@
       }
     },
 
+    // Wetter (weich überblendete Werte aus FF.WeatherState)
+    setWeather(v) { this.wv = v; },
+
+    // Donner: tiefes, langes Grollen mit Knall am Anfang
+    thunder(delay) {
+      if (!this.ctx || this.muted) return;
+      const t = this.ctx.currentTime + (delay || 0);
+      this.noise(0.35, 1400, 0.22, 0.6, 0.3, t, 'lowpass', this.ambBus);
+      this.noise(3.2, 260, 0.5, 0.7, 0.35, t + 0.05, 'lowpass', this.ambBus);
+      this.noise(2.4, 120, 0.4, 0.8, 0.6, t + 0.6, 'lowpass', this.ambBus);
+    },
+
     // ---------------------------------------------------------- Natur
     ambience(dt) {
       if (!this.ctx || this.muted) return;
       const c = this.ctx, a = this.mood.amb, t = c.currentTime;
-      // Wind atmet langsam
-      const w = 0.16 + Math.sin(t * 0.13) * 0.06 + Math.sin(t * 0.37) * 0.04;
-      if (a.includes('wind')) this.wind.g.gain.setTargetAtTime(w, t, 0.5);
-      this.wind.f.frequency.setTargetAtTime(320 + Math.sin(t * 0.21) * 120, t, 0.5);
+      const wv = this.wv || { rain: 0, snow: 0, wind: 0.35 };
+      // Wind atmet langsam, bei Sturm in Böen
+      const gust = Math.max(0, Math.sin(t * 0.5) * Math.sin(t * 0.23 + 1));
+      const w = (0.16 + Math.sin(t * 0.13) * 0.06 + Math.sin(t * 0.37) * 0.04) * (0.6 + wv.wind * 0.9) + gust * Math.max(0, wv.wind - 0.8) * 0.35;
+      if (a.includes('wind') || wv.wind > 0.8) this.wind.g.gain.setTargetAtTime(w, t, 0.5);
+      this.wind.f.frequency.setTargetAtTime(320 + Math.sin(t * 0.21) * 120 + gust * wv.wind * 200, t, 0.5);
+      this.rainHi.g.gain.setTargetAtTime(wv.rain * 0.3, t, 0.8);
+      this.rainLo.g.gain.setTargetAtTime(wv.rain * 0.22, t, 0.8);
+      const quiet = wv.rain > 0.3 || wv.snow > 0.5;   // bei Regen und Schnee schweigen die Vögel
       const due = (k, min, max) => {
         if (!(k in this.ambT)) this.ambT[k] = t + min * Math.random();
         if (t < this.ambT[k]) return false;
@@ -260,13 +279,13 @@
         return true;
       };
       const pan = () => Math.random() * 1.6 - 0.8;
-      if (a.includes('birds') && due('birds', 2.5, 7)) {
+      if (a.includes('birds') && !quiet && due('birds', 2.5, 7)) {
         const base = 2400 + Math.random() * 1800, n = 2 + Math.floor(Math.random() * 5), p = pan();
         for (let i = 0; i < n; i++) this.chirp(base * (0.9 + Math.random() * 0.25), t + i * (0.09 + Math.random() * 0.08), p);
       }
       if (a.includes('crows') && due('crows', 8, 18)) { const p = pan(); this.caw(t, p); if (Math.random() < 0.6) this.caw(t + 0.45, p); }
-      if (a.includes('frogs') && due('frogs', 3, 8)) { const p = pan(); for (let i = 0; i < 3; i++) this.croak(t + i * 0.32, p); }
-      if (a.includes('crickets') && due('crickets', 0.6, 1.4)) {
+      if (a.includes('frogs') && wv.snow < 0.5 && due('frogs', 3, 8)) { const p = pan(); for (let i = 0; i < 3; i++) this.croak(t + i * 0.32, p); }
+      if (a.includes('crickets') && !quiet && due('crickets', 0.6, 1.4)) {
         const p = pan(), f = 4200 + Math.random() * 700;
         for (let i = 0; i < 4; i++) this.tone(f, 0.035, 'sine', 0.012, 1, t + i * 0.055, this.ambBus);
         void p;

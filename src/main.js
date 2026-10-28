@@ -537,6 +537,20 @@
   }
   syncGfx();
 
+  // ------------------------------------------------------------ Wetter
+  let weatherPref = FF.store.get('weather', 'auto');
+  if (!FF.WEATHER_ORDER.includes(weatherPref)) weatherPref = 'auto';
+  if (R.setWeather) R.setWeather(weatherPref);
+  function syncWeather() { $$('#btn-weather, #btn-weather2').forEach((b) => (b.textContent = 'Wetter: ' + FF.WEATHER_NAMES[weatherPref])); }
+  function cycleWeather() {
+    const o = FF.WEATHER_ORDER;
+    weatherPref = o[(o.indexOf(weatherPref) + 1) % o.length];
+    FF.store.set('weather', weatherPref);
+    if (R.setWeather) R.setWeather(weatherPref);
+    syncWeather();
+  }
+  syncWeather();
+
   // ------------------------------------------------------------ Aktionen
   function act(a) {
     FF.audio.init();
@@ -549,6 +563,7 @@
       case 'help': returnTo = screen; show('help'); break;
       case 'fullscreen': goFullscreen(false); break;
       case 'gfx': cycleGfx(); break;
+      case 'weather': cycleWeather(); break;
       case 'back':
         if (screen === 'help') show(returnTo);
         else if (screen === 'levels' && net && net.role === 'host') show('lobby');

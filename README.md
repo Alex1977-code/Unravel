@@ -54,7 +54,9 @@ Gespielt wird auf einer Ebene, dargestellt wird die Welt in 3D (WebGL mit Three.
 - Felsblöcke reichen nach hinten in die Tiefe. Ihre Oberflächen tragen Foto-Texturen (Erde, Fels, Gras, Holz) mit Normal-Maps, eingefärbt je Stimmung. Darauf stehen Grashalme, die sich im Wind bewegen, Büsche, Laub, Zweige, Kiesel und Steine, aus den Erdwänden ragen Steine, an Kanten hängen Wurzeln.
 - Das Licht kommt aus echten HDR-Himmelsaufnahmen (Wald, Sonnenaufgang, Sonnenuntergang, Nacht) und einer Sonne mit weichen Schatten. Ein Gegenlicht zeichnet Lichtkanten, durch den Wald fallen Lichtbahnen.
 - Hinter der Spielebene stehen Laub- und Nadelbäume, Birken oder Herbstbäume in mehreren Reihen, die Kronen aus Foto-Laub, dahinter Berge im Nebel.
-- Wasser spiegelt die Umgebung, dazu kommen Tiefenunschärfe, Leuchten, Vignette und Filmkorn.
+- Gras wächst in Büscheln aus schmalen, gebogenen Halmen, durch die das Licht scheint. Windböen laufen als Welle über die Wiese, dazwischen stehen Blumen und Pilze, Steine tragen Moos.
+- Wasser spiegelt, was über ihm liegt, mit Wellen, die sich bei Regen verstärken. Dazu kommen Tiefenunschärfe, Leuchten, Vignette und Filmkorn.
+- **Wetter** (Taste „Wetter“ im Titel und in der Pause): Sonne, Regen, Sturm, Schnee oder „Automatisch“ je Level. Regen fällt mit Spritzern auf Boden und Wasser, Erde und Steine werden dunkel und glänzend, auf ebenen Stellen bilden sich Pfützen. Im Sturm biegen sich Gras und Bäume, es blitzt und donnert. Bei Schnee legt sich eine Schneedecke auf alle nach oben zeigenden Flächen und auf die Grasspitzen. Wolken, Licht, Nebel, Farbstimmung und Geräusche (Regenrauschen, Wind, Donner; Vögel schweigen) wechseln weich mit. Das Spielgeschehen bleibt bei jedem Wetter gleich.
 - Die Figuren bestehen aus echten 3D-Wollfäden mit Stoffglanz und Flaum, die Fäden zwischen ihnen sind 3D-Röhren.
 
 Ein Level wird beim Start ein paar Sekunden aufgebaut; solange steht das Spiel. Damit es danach flüssig läuft:
@@ -91,6 +93,7 @@ Musik und Geräusche werden im Browser erzeugt: gezupfte Gitarre (Karplus-Strong
 | `src/render3d.js` | 3D-Grafik (Three.js): Gelände, Bäume, Licht, Wasser, Woll-Figuren |
 | `src/assets3d.js` | Lädt Foto-Texturen und HDR-Himmel |
 | `src/textures.js` | Prozedurale Texturen mit Normal-Maps (Ausweichlösung, Wolle) |
+| `src/weather.js` | Wetter: Kenngrößen, Überblendung, Blitz, Regen und Schnee für die 2D-Grafik |
 | `src/render.js` | 2D-Grafik (Ausweichlösung) und die Kamera, Hinweise als Overlay |
 | `src/input.js` | Tastatur, Gamepads, virtuelle Controller, Vibration |
 | `src/touch.js` | Touch-Steuerung im Gamepad-Look (auch der Handy-Controller) |
