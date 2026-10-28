@@ -63,8 +63,10 @@
 
     resize() {
       const dpr = this.quality === 'low' ? 1 : Math.min(2, (typeof devicePixelRatio !== 'undefined' && devicePixelRatio) || 1);
-      this.cv.width = Math.max(320, Math.round(innerWidth * dpr));
-      this.cv.height = Math.max(240, Math.round(innerHeight * dpr));
+      const v = FF.viewSize(this.cv);
+      this.cv.width = Math.max(320, Math.round(v.w * dpr));
+      this.cv.height = Math.max(240, Math.round(v.h * dpr));
+      this.cssW = v.w; this.cssH = v.h;
       this.W = this.cv.width; this.H = this.cv.height;
       this.dpr = dpr;
     }

@@ -27,6 +27,13 @@
     PUSH_SPEED: 0.55,
   };
 
+  // Sichtbare Größe einer Vollbild-Zeichenfläche in CSS-Pixeln. Auf iOS stimmen innerWidth/innerHeight
+  // direkt nach dem Laden oder Drehen nicht immer, die gemessene Größe des Elements schon.
+  FF.viewSize = (el) => {
+    const w = (el && el.clientWidth) || (typeof innerWidth !== 'undefined' ? innerWidth : 1280);
+    const h = (el && el.clientHeight) || (typeof innerHeight !== 'undefined' ? innerHeight : 720);
+    return { w: Math.max(1, w), h: Math.max(1, h) };
+  };
   FF.clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   FF.lerp = (a, b, t) => a + (b - a) * t;
   FF.approach = (v, t, d) => (v < t ? Math.min(v + d, t) : Math.max(v - d, t));

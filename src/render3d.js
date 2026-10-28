@@ -197,7 +197,8 @@
 
     resize() {
       this.r2.resize();
-      const w = innerWidth, h = innerHeight;
+      const { w, h } = FF.viewSize(this.gl);
+      this.cssW = w; this.cssH = h;
       this.renderer.setPixelRatio(this.pixelRatio());
       this.renderer.setSize(w, h, false);
       this.camera.aspect = w / h;
@@ -206,19 +207,27 @@
     }
 
     applyResolution() {
-      const w = innerWidth, h = innerHeight;
+      const w = this.cssW, h = this.cssH;
       this.renderer.setPixelRatio(this.pixelRatio());
       this.renderer.setSize(w, h, false);
       if (this.composer) { this.composer.setPixelRatio(this.pixelRatio()); this.composer.setSize(w, h); }
     }
 
     // Dynamische Auflösung: Ziel sind flüssige 60 Bilder pro Sekunde
+    // Dynamische Auflösung, Ziel 60 Bilder pro Sekunde. Jede Absenkung ist ein Versuch: bringt sie nichts, hängt die
+    // Bildrate an einer festen Obergrenze (z. B. 30 Bilder im Stromsparmodus) – dann bleibt die volle Auflösung.
     adapt(dt) {
       if (!dt || dt > 0.25 || this.loading) return;
       this.ft += (dt - this.ft) * 0.08;
-      const now = this.clock;
-      if (this.ft > 1 / 50 && now - this.lastAdj > 1.2 && this.dynScale > 0.55) {
-        this.dynScale = Math.max(0.55, this.dynScale * 0.87); this.lastAdj = now; this.applyResolution();
+      const now = this.clock, pr = this.probe;
+      if (pr && now - pr.t > 1.5) {
+        this.probe = null;
+        if (this.ft > pr.ft * 0.93) { this.capped = true; this.dynScale = pr.scale; this.applyResolution(); return; }
+      }
+      if (this.probe) return;
+      if (!this.capped && this.ft > 1 / 50 && now - this.lastAdj > 1.2 && this.dynScale > 0.55) {
+        this.probe = { ft: this.ft, scale: this.dynScale, t: now };
+        this.dynScale = Math.max(0.55, this.dynScale * 0.85); this.lastAdj = now; this.applyResolution();
       } else if (this.ft < 1 / 58 && now - this.lastAdj > 4 && this.dynScale < 1) {
         this.dynScale = Math.min(1, this.dynScale * 1.08); this.lastAdj = now; this.applyResolution();
       }
@@ -229,7 +238,7 @@
       if (this.composer) { this.composer.dispose && this.composer.dispose(); }
       this.composer = null; this.dof = null;
       if (this.quality === 'low' || !this.scene) return;
-      const w = innerWidth, h = innerHeight, pr = this.pixelRatio();
+      const w = this.cssW, h = this.cssH, pr = this.pixelRatio();
       const rt = new THREE.WebGLRenderTarget(Math.round(w * pr), Math.round(h * pr), {
         type: THREE.HalfFloatType, samples: this.quality === 'high' ? 4 : 0,
       });
@@ -319,6 +328,7 @@
         this.ropes.push(r);
       }
       this.level = L; this.game = g;
+      this.capped = false; this.probe = null; this.ft = 1 / 60;
       this.r2.snap = true;
     }
 

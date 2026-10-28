@@ -30,7 +30,7 @@ node tools/build.js            # -> dist/fadenfreunde.html
 
 **Controller:** Unter „Controller“ stehen alle erkannten Gamepads. Dort lässt sich jedem Rot oder Blau zuordnen und die Vibration testen; dazu gibt es eine Anleitung zum Koppeln per Bluetooth (Xbox, PlayStation, Switch Pro). Bluetooth selbst übernimmt das Betriebssystem, der Browser sieht den Controller nach dem ersten Tastendruck.
 
-**Handy & Tablet:** Links irgendwo den Daumen aufsetzen und ziehen, das ist der Joystick. Rechts liegen Sprung, Lasso, Halten und Knoten. Das Spiel geht beim Start in den Vollbildmodus und will quer gehalten werden. Auf dem iPhone gibt es Vollbild über „Teilen → Zum Home-Bildschirm“.
+**Handy & Tablet:** Die Steuerung sieht aus wie ein Gamepad. Links ist ein Analogstick, der dorthin springt, wo der Daumen aufsetzt. Rechts liegen die Aktionstasten als Raute: Sprung unten, Lasso rechts, Halten links, Knoten oben; allein darüber die Schultertasten Wechsel und Huckepack. Das Spiel geht beim Start in den Vollbildmodus und will quer gehalten werden. Auf dem iPhone gibt es Vollbild über „Teilen → Zum Home-Bildschirm“.
 
 Ins Ziel müssen immer beide.
 
@@ -66,7 +66,7 @@ Ein Level wird beim Start ein paar Sekunden aufgebaut; solange steht das Spiel. 
 
 Wird `index.html` direkt von der Festplatte geöffnet (`file://`), erlaubt der Browser WebGL keine Bilddateien; dann nimmt die 3D-Grafik berechnete Texturen. Die Einzeldatei (`node tools/build.js`) und die GitHub-Pages-Seite enthalten die Fotos.
 
-Unter „Grafik“ (Titel und Pause) lässt sich die Stufe wählen: 3D hoch, mittel, einfach oder 2D. Auf Handys und Fernsehern startet das Spiel mit „mittel“. Läuft es zu langsam, schaltet es selbst eine Stufe herunter. Ohne echte Grafikkarte, etwa bei reinem Software-Rendering, nimmt es die 2D-Grafik. Mit `?gfx=2d` oder `?gfx=3d` in der Adresse lässt sich das erzwingen.
+Unter „Grafik“ (Titel und Pause) lässt sich die Stufe wählen: 3D hoch, mittel, einfach oder 2D. Auf Handys und Fernsehern startet das Spiel mit „mittel“. Läuft es zu langsam, senkt es erst die Auflösung und dann die Stufe; eine selbst gewählte Stufe bleibt aber stehen. Eine feste Obergrenze von 30 Bildern pro Sekunde (etwa im Stromsparmodus) gilt nicht als Überlastung. Ohne echte Grafikkarte, etwa bei reinem Software-Rendering, nimmt es die 2D-Grafik. Mit `?gfx=2d` oder `?gfx=3d` in der Adresse lässt sich das erzwingen.
 
 ## Klang
 
@@ -93,7 +93,7 @@ Musik und Geräusche werden im Browser erzeugt: gezupfte Gitarre (Karplus-Strong
 | `src/textures.js` | Prozedurale Texturen mit Normal-Maps (Ausweichlösung, Wolle) |
 | `src/render.js` | 2D-Grafik (Ausweichlösung) und die Kamera, Hinweise als Overlay |
 | `src/input.js` | Tastatur, Gamepads, virtuelle Controller, Vibration |
-| `src/touch.js` | Touch-Joystick und Knöpfe (auch der Handy-Controller) |
+| `src/touch.js` | Touch-Steuerung im Gamepad-Look (auch der Handy-Controller) |
 | `src/net.js` | Online-Spiel: Räume, Eingaben, Zustandsbilder |
 | `src/audio.js` | Musik, Naturgeräusche, Effekte |
 | `src/main.js` | Menüs, HUD, Netzwerkrollen, Hauptschleife |

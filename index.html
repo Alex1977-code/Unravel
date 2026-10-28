@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,600;1,9..144,800&family=Nunito:wght@600;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,300;1,9..144,500;1,9..144,700&family=Nunito:wght@500;600;800&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -28,9 +28,9 @@
     <span id="hud-net" class="hud-chip" hidden></span>
   </div>
   <div class="hud-right">
-    <button id="btn-full" class="hud-btn" type="button" aria-label="Vollbild">⛶</button>
-    <button id="btn-mute" class="hud-btn" type="button" aria-label="Ton an/aus">♪</button>
-    <button id="btn-pause" class="hud-btn" type="button" aria-label="Pause">❚❚</button>
+    <button id="btn-full" class="hud-btn" type="button" aria-label="Vollbild"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <button id="btn-mute" class="hud-btn" type="button" aria-label="Ton an/aus"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5v14l-4.5-4.5H4z"/><path class="wave" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/><path class="cross" d="M15.5 9.5l5 5M20.5 9.5l-5 5"/></svg></button>
+    <button id="btn-pause" class="hud-btn" type="button" aria-label="Pause"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5v13M15 5.5v13"/></svg></button>
   </div>
 </div>
 <div id="toasts" aria-live="polite"></div>
@@ -42,8 +42,8 @@
   <header class="pad-head">
     <span id="pad-who" class="pad-who">Controller</span>
     <span id="pad-status" class="pad-status">verbinde …</span>
-    <button type="button" id="pad-pause" class="pad-mini">❚❚</button>
-    <button type="button" id="pad-leave" class="pad-mini">✕</button>
+    <button type="button" id="pad-pause" class="pad-mini" aria-label="Pause"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5.5v13M15 5.5v13"/></svg></button>
+    <button type="button" id="pad-leave" class="pad-mini" aria-label="Verlassen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </header>
   <div id="pad-touch"></div>
   <div id="pad-nav" hidden>
@@ -61,7 +61,7 @@
   <section id="scr-title" class="screen">
     <div class="panel title-panel">
       <h1 class="logo">Faden<span>freunde</span></h1>
-      <svg class="thread" viewBox="0 0 320 24" aria-hidden="true"><path d="M2 14 C 40 2, 70 24, 110 12 S 180 4, 210 14 S 280 22, 318 8"/></svg>
+      <svg class="thread" viewBox="0 0 320 24" aria-hidden="true"><path class="t-blue" d="M2 10 C 40 22, 80 2, 120 12 S 190 22, 230 10 S 290 4, 318 14"/><path class="t-red" d="M2 14 C 40 2, 70 24, 110 12 S 180 4, 210 14 S 280 22, 318 8"/></svg>
       <p class="lede">Zwei kleine Wollfiguren, ein gemeinsamer Faden. Schwingt, klettert und knotet euch durch fünf Landschaften nach Hause.</p>
       <div class="menu">
         <button type="button" class="btn primary" data-act="solo"><b>Allein spielen</b><small>Wechseln und huckepack tragen</small></button>
@@ -196,8 +196,8 @@
           </dl>
           <h3>Handy &amp; Tablet</h3>
           <dl>
-            <dt>Linke Hälfte</dt><dd>Joystick: dort hinziehen, wo der Daumen gerade ist</dd>
-            <dt>Rechte Seite</dt><dd>Sprung, Lasso, Halten, Knoten (allein auch Wechsel und Huckepack)</dd>
+            <dt>Linke Hälfte</dt><dd>Stick: er springt dorthin, wo der Daumen aufsetzt</dd>
+            <dt>Rechte Seite</dt><dd>Tasten wie am Gamepad: Sprung unten, Lasso rechts, Halten links, Knoten oben. Allein darüber Wechsel und Huckepack</dd>
           </dl>
         </div>
         <div class="help-col">

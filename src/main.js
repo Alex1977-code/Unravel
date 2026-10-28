@@ -523,14 +523,17 @@
     return 'Grafik: ' + (e ? e[1] : R.quality);
   }
   function syncGfx() { $$('#btn-gfx, #btn-gfx2').forEach((b) => (b.textContent = gfxName())); }
+  // Reihenfolge hoch → mittel → einfach → 2D → hoch. Eine selbst gewählte Stufe stellt das Spiel nicht mehr von allein um.
   function cycleGfx() {
-    if (!is3D) { FF.store.set('gfx', '3d'); location.reload(); return; }
+    FF.store.set('gfxManual', 1);
+    if (!is3D) { FF.store.set('gfx', '3d'); FF.store.set('quality3d', 'high'); location.reload(); return; }
     const order = ['high', 'medium', 'low', '2d'];
     const next = order[(order.indexOf(R.quality) + 1) % order.length];
     if (next === '2d') { FF.store.set('gfx', '2d'); location.reload(); return; }
     FF.store.set('gfx', '3d');
-    R.quality = next; FF.store.set('quality3d', next); R.level = null; R.resize();
+    R.quality = next; FF.store.set('quality3d', next); R.dynScale = 1; R.level = null; R.resize();
     syncGfx();
+    toast(next === 'high' ? 'Grafik: 3D hoch' : next === 'medium' ? 'Grafik: 3D mittel' : 'Grafik: 3D einfach');
   }
   syncGfx();
 
@@ -609,7 +612,16 @@
     }
   }
 
-  addEventListener('resize', () => { R.resize(); });
+  // Größe bei jedem Bild prüfen: iOS meldet Drehen und Leisten-Ein/Ausblenden nicht immer zuverlässig
+  const sizeEl = is3D ? $('#gl') : cv;
+  let lastSize = '';
+  function checkSize(force) {
+    const v = FF.viewSize(sizeEl), key = v.w + 'x' + v.h + '@' + devicePixelRatio;
+    if (force || key !== lastSize) { lastSize = key; R.resize(); }
+  }
+  addEventListener('resize', () => checkSize());
+  addEventListener('orientationchange', () => setTimeout(() => checkSize(true), 350));
+  if (window.visualViewport) visualViewport.addEventListener('resize', () => checkSize());
   addEventListener('keydown', () => FF.audio.init(), { once: true });
   addEventListener('pointerdown', () => FF.audio.init(), { once: true });
   document.addEventListener('visibilitychange', () => {
@@ -619,10 +631,11 @@
 
   // ------------------------------------------------------------ Schleife
   let last = performance.now();
-  let hudT = 0, slowT = 0, padT = 0;
+  let hudT = 0, slowT = 0, padT = 0, frameMin = 1, frameWin = 0, frameBase = 1 / 60;
   function loop(now) {
     const dt = Math.min(0.1, Math.max(0, (now - last) / 1000));
     last = now;
+    checkSize();
     input.poll();
     const gl = input.global();
     for (const k in navPending) { gl[k] = 1; delete navPending[k]; }
@@ -669,9 +682,16 @@
     }
 
     // Läuft das Gerät zu langsam? Dann auf einfache Grafik umschalten.
+    // Gemessen wird gegen die kürzeste Bilddauer der letzten Sekunden: läuft das Gerät fest mit 30 Bildern
+    // (Stromsparmodus, eingebettete Seite), ist das kein Überlasten.
+    frameMin = Math.min(frameMin, dt); frameWin += dt;
+    if (frameWin > 2) { frameBase = frameMin; frameMin = 1; frameWin = 0; }
+    const slowAt = R.capped ? Math.max(1 / 38, frameBase * 1.45) : 1 / 38;
     if (R.busy) slowT = -1;
-    else if (dt > 1 / 38) slowT += dt; else slowT = Math.max(0, slowT - dt * 0.5);
-    if (slowT > 2.5 && R.quality !== 'low') { R.setQuality('low'); slowT = 0; syncGfx(); toast('Grafik vereinfacht, damit es flüssig bleibt.'); }
+    else if (dt > slowAt) slowT += dt; else slowT = Math.max(0, slowT - dt * 0.5);
+    if (slowT > 3 && R.quality !== 'low' && !FF.store.get('gfxManual', 0)) {
+      R.setQuality('low'); slowT = 0; syncGfx(); toast('Grafik vereinfacht, damit es flüssig bleibt. Unter „Grafik“ wieder umstellbar.');
+    }
 
     hudT -= dt;
     if (hudT <= 0) { updateHud(); hudT = 0.25; }
