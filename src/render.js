@@ -97,6 +97,22 @@
   };
   FF.THEMES = THEMES;
 
+  // Wie viel Wolle hat eine Figur gerade abgerollt? Ihre Hälfte des gemeinsamen Fadens, ihr Lasso und die
+  // Knoten-Fäden, die sie geknüpft hat. Daraus folgt, wie dick sie noch ist (1 = voll, bis 0.38 = fast nur Gerüst).
+  // Weich nachgeführt, damit die Figur sichtbar ab- und wieder aufwickelt.
+  FF.yarnFill = function (g, p, dt) {
+    let used = 0;
+    if (g.tetherOn) used += g.tether.total / 2;
+    if (p.lasso) used += p.lasso.total;
+    for (const b of g.world.bridges) if (b.owner === p.id) used += Math.hypot(b.bx - b.ax, b.by - b.ay);
+    const target = 1 - FF.clamp((used - 20) / 540, 0, 1) * 0.62;
+    if (p._fill === undefined) p._fill = target;
+    p._fill += (target - p._fill) * Math.min(1, (dt || 0) * 5);
+    p._spin = (p._spin || 0) + (used - (p._used === undefined ? used : p._used)) * 0.05;
+    p._used = used;
+    return p._fill;
+  };
+
   class Renderer {
     constructor(cv) {
       this.cv = cv;
@@ -298,6 +314,7 @@
     // ---------------------------------------------------------- Zeichnen
     draw(g, dt, opts = {}) {
       this.t += dt;
+      this.dt = dt;
       this.prepare(g);
       this.updateCamera(g, dt, opts);
       const ctx = this.ctx, W = this.W, H = this.H, cam = this.cam, th = this.th;
@@ -1293,19 +1310,24 @@
       }
       ctx.stroke();
 
-      // Körper: gewickelte Wolle
+      // Körper: gewickelte Wolle – je mehr Faden abgerollt ist, desto schmaler; dann scheint das Drahtgerüst durch
+      const fill = FF.yarnFill(g, p, this.dt), bw = 5.6 * fill, spin = (p._spin || 0) % 3;
+      if (fill < 0.8) {
+        ctx.strokeStyle = '#3a2e26'; ctx.lineWidth = 1.1;
+        ctx.beginPath(); ctx.moveTo(0, hipY + 1); ctx.lineTo(0, shY - 1); ctx.stroke();
+      }
       ctx.fillStyle = col;
-      ctx.beginPath(); ctx.ellipse(0, (hipY + shY) / 2 - 1, 5.6, (hipY - shY) / 2 + 3, 0, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(0, (hipY + shY) / 2 - 1, bw, (hipY - shY) / 2 + 3 * fill, 0, 0, TAU); ctx.fill();
       ctx.shadowBlur = 0;
       ctx.save();
-      ctx.beginPath(); ctx.ellipse(0, (hipY + shY) / 2 - 1, 5.6, (hipY - shY) / 2 + 3, 0, 0, TAU); ctx.clip();
+      ctx.beginPath(); ctx.ellipse(0, (hipY + shY) / 2 - 1, bw, (hipY - shY) / 2 + 3 * fill, 0, 0, TAU); ctx.clip();
       ctx.strokeStyle = dark; ctx.lineWidth = 0.9;
-      for (let i = -3; i <= 4; i++) { ctx.beginPath(); ctx.moveTo(-7, shY + i * 3); ctx.lineTo(7, shY + i * 3 - 4); ctx.stroke(); }
+      for (let i = -3; i <= 4; i++) { ctx.beginPath(); ctx.moveTo(-7, shY + i * 3 + spin); ctx.lineTo(7, shY + i * 3 - 4 + spin); ctx.stroke(); }
       ctx.strokeStyle = light; ctx.lineWidth = 0.6;
-      for (let i = -3; i <= 4; i++) { ctx.beginPath(); ctx.moveTo(-7, shY + i * 3 + 1.3); ctx.lineTo(7, shY + i * 3 - 2.7); ctx.stroke(); }
+      for (let i = -3; i <= 4; i++) { ctx.beginPath(); ctx.moveTo(-7, shY + i * 3 + 1.3 + spin); ctx.lineTo(7, shY + i * 3 - 2.7 + spin); ctx.stroke(); }
       ctx.restore();
       ctx.strokeStyle = rim; ctx.lineWidth = 1.1;
-      ctx.beginPath(); ctx.ellipse(0, (hipY + shY) / 2 - 1, 5.2, (hipY - shY) / 2 + 2.6, 0, lit > 0 ? -1.2 : Math.PI - 1.0, lit > 0 ? 1.0 : Math.PI + 1.2); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(0, (hipY + shY) / 2 - 1, bw * 0.93, (hipY - shY) / 2 + 2.6 * fill, 0, lit > 0 ? -1.2 : Math.PI - 1.0, lit > 0 ? 1.0 : Math.PI + 1.2); ctx.stroke();
 
       // Arme
       ctx.strokeStyle = dark; ctx.lineWidth = 2.2;

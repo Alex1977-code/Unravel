@@ -1373,7 +1373,11 @@
         const body = new THREE.Group();
         const core = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 14), this.mats.yarnDark[id]);
         core.scale.set(4.5, 7.3, 4.1);
-        body.add(core, this.bodyWraps(id, rnd));
+        const wraps = this.bodyWraps(id, rnd);
+        body.add(core, wraps);
+        // Drahtgerüst im Inneren: wird sichtbar, wenn viel Faden abgerollt ist
+        const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 15, 6), new THREE.MeshStandardMaterial({ color: col('#4a3a2e'), roughness: 0.5, metalness: 0.4 }));
+        turn.add(wire);
         const head = this.yarnBall(6.2, [FF.COLORS[id], FF.COLORS_DARK[id]], 20, 0.62, rnd);
         if (this.quality !== 'low') {
           const fz = this.fuzzMaterial(FF.COLORS[id]);
@@ -1406,7 +1410,7 @@
         const ends = [0, 1, 2, 3].map(() => { const m = new THREE.Mesh(endGeo, mat); turn.add(m); return m; });
         root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
         this.scene.add(root);
-        return { root, turn, body, head, eyes, limbs, ends, curl, rot: id ? Math.PI + 0.5 : -0.5 };
+        return { root, turn, body, head, eyes, limbs, ends, curl, wraps, wire, rot: id ? Math.PI + 0.5 : -0.5 };
       });
     }
 
@@ -1455,8 +1459,14 @@
       y.rot += d * Math.min(1, dt * 12);
       y.turn.rotation.y = y.rot;
       const hipY = 10 - crouch * 0.5, shY = 18 - crouch;
+      // Abgerollter Faden macht die Figur schmaler, die Wicklung dreht sich dabei mit
+      const fill = FF.yarnFill(g, p, dt);
       y.body.position.set(0, (hipY + shY) / 2 + 1, 0);
-      y.body.scale.set(1, (shY - hipY + 6) / 14.8, 1);
+      y.body.scale.set(fill, (shY - hipY + 6 * fill) / 14.8, fill);
+      y.wraps.rotation.y = p._spin || 0;
+      y.wire.position.set(0, (hipY + shY) / 2 + 1, 0);
+      y.wire.visible = fill < 0.85;
+      y.head.scale.setScalar(0.88 + 0.12 * fill);
       y.head.position.set(0.4, shY + 7 + (moving ? Math.abs(sw) * 0.8 : 0), 0);
       const blink = p.blink < 0 ? 0.15 : 1;
       for (const e of y.eyes) e.scale.set(1, blink, 1);
