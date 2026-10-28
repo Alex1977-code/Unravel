@@ -27,7 +27,7 @@ jobs:
       - name: Seite zusammenstellen
         run: |
           mkdir -p _site
-          cp -r index.html style.css manifest.webmanifest src vendor icons _site/
+          cp -r index.html style.css manifest.webmanifest src vendor icons assets _site/
           node tools/build.js _site/fadenfreunde.html
           # Versionsstempel: Dateien bekommen ?v=<commit>, damit Browser nie alte Stände aus dem Cache nehmen.
           V="${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"

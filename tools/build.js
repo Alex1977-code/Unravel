@@ -21,6 +21,16 @@ html = html.replace('href="icons/icon-180.png"', () => `href="${dataUri('icons/i
 // Bibliotheken für Online-Spiel und QR-Code direkt mitliefern
 const vendor = ['vendor/peerjs.min.js', 'vendor/qrcode.js'].map((f) => script(read(f))).join('\n');
 html = html.replace('<script src="src/core.js"></script>', () => vendor + '\n<script src="src/core.js"></script>');
+// Foto-Texturen und HDRIs als data:-URLs, damit die Einzeldatei ohne Server auskommt
+const mime = { jpg: 'image/jpeg', png: 'image/png', exr: 'application/octet-stream' };
+const assets = {};
+for (const dir of ['tex', 'hdri']) {
+  for (const f of fs.readdirSync(path.join(root, 'assets', dir)).sort()) {
+    const b = fs.readFileSync(path.join(root, 'assets', dir, f)).toString('base64');
+    assets[dir + '/' + f] = `data:${mime[f.split('.').pop()]};base64,${b}`;
+  }
+}
+html = html.replace('<script src="src/assets3d.js"></script>', () => script(`FF.ASSET_DATA = ${JSON.stringify(assets)};`) + '\n<script src="src/assets3d.js"></script>');
 html = html.replace(/<script src="((?:src|vendor)\/[\w.]+)"><\/script>/g, (_, src) => script(read(src)));
 
 if (fragment) {

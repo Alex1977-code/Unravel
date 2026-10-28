@@ -359,3 +359,4 @@ body.tv .hud-chip { font-size: 18px; }
   #pad-touch .tp-buttons { align-self: center; padding: 0 16px max(20px, env(safe-area-inset-bottom, 0px)); }
   #pad-touch .tp-base { left: 50%; top: 55%; }
 }
+.note.credits { margin-top: 10px; font-size: 11px; opacity: 0.75; }

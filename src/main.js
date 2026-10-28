@@ -631,7 +631,7 @@
     if (screen === 'pad') { input.endFrame(); requestAnimationFrame(loop); return; }
 
     const guest = net && net.role === 'guest';
-    if (screen === 'play' && game && !guest) {
+    if (screen === 'play' && game && !guest && (!R.ready || R.ready(game))) {
       if (gl.pause) show('pause');
       else {
         let opts = {};
@@ -669,7 +669,8 @@
     }
 
     // Läuft das Gerät zu langsam? Dann auf einfache Grafik umschalten.
-    if (dt > 1 / 38) slowT += dt; else slowT = Math.max(0, slowT - dt * 0.5);
+    if (R.busy) slowT = -1;
+    else if (dt > 1 / 38) slowT += dt; else slowT = Math.max(0, slowT - dt * 0.5);
     if (slowT > 2.5 && R.quality !== 'low') { R.setQuality('low'); slowT = 0; syncGfx(); toast('Grafik vereinfacht, damit es flüssig bleibt.'); }
 
     hudT -= dt;

@@ -51,10 +51,20 @@ Ins Ziel müssen immer beide.
 
 Gespielt wird auf einer Ebene, dargestellt wird die Welt in 3D (WebGL mit Three.js), ähnlich wie bei Unravel:
 
-- Felsblöcke reichen nach hinten in die Tiefe. Ihre Oberflächen sind prozedurale Erd-, Stein- und Moostexturen mit Relief, darauf stehen Grashalme, die sich im Wind bewegen, sowie Steine und hängende Wurzeln.
-- Hinter der Spielebene stehen Laub- und Nadelbäume, Birken oder Herbstbäume in mehreren Reihen, dahinter Berge im Nebel.
-- Die Sonne wirft Schatten, ein Gegenlicht zeichnet Lichtkanten. Wasser spiegelt den Himmel. Dazu kommen Tiefenunschärfe, Leuchten, Vignette und Filmkorn.
-- Die Figuren bestehen aus echten 3D-Wollfäden mit Stoffglanz, die Fäden zwischen ihnen sind 3D-Röhren.
+- Felsblöcke reichen nach hinten in die Tiefe. Ihre Oberflächen tragen Foto-Texturen (Erde, Fels, Gras, Holz) mit Normal-Maps, eingefärbt je Stimmung. Darauf stehen Grashalme, die sich im Wind bewegen, Büsche, Laub, Zweige, Kiesel und Steine, aus den Erdwänden ragen Steine, an Kanten hängen Wurzeln.
+- Das Licht kommt aus echten HDR-Himmelsaufnahmen (Wald, Sonnenaufgang, Sonnenuntergang, Nacht) und einer Sonne mit weichen Schatten. Ein Gegenlicht zeichnet Lichtkanten, durch den Wald fallen Lichtbahnen.
+- Hinter der Spielebene stehen Laub- und Nadelbäume, Birken oder Herbstbäume in mehreren Reihen, die Kronen aus Foto-Laub, dahinter Berge im Nebel.
+- Wasser spiegelt die Umgebung, dazu kommen Tiefenunschärfe, Leuchten, Vignette und Filmkorn.
+- Die Figuren bestehen aus echten 3D-Wollfäden mit Stoffglanz und Flaum, die Fäden zwischen ihnen sind 3D-Röhren.
+
+Ein Level wird beim Start ein paar Sekunden aufgebaut; solange steht das Spiel. Damit es danach flüssig läuft:
+
+- Die Szene ist in Abschnitte geteilt, gezeichnet wird nur, was im Bild liegt. Gras, Steine und Laub sind Instanzen (ein Zeichenaufruf je Abschnitt).
+- Die Tiefenunschärfe liest den vorhandenen Tiefenpuffer, statt die Szene ein zweites Mal zu zeichnen.
+- Die Auflösung passt sich laufend an, damit die Bildrate bei 60 bleibt; reicht das nicht, sinkt die Qualitätsstufe.
+- Fäden werden in feste Puffer geschrieben statt jedes Bild neu angelegt, Shader und Texturen werden beim Laden vorbereitet.
+
+Wird `index.html` direkt von der Festplatte geöffnet (`file://`), erlaubt der Browser WebGL keine Bilddateien; dann nimmt die 3D-Grafik berechnete Texturen. Die Einzeldatei (`node tools/build.js`) und die GitHub-Pages-Seite enthalten die Fotos.
 
 Unter „Grafik“ (Titel und Pause) lässt sich die Stufe wählen: 3D hoch, mittel, einfach oder 2D. Auf Handys und Fernsehern startet das Spiel mit „mittel“. Läuft es zu langsam, schaltet es selbst eine Stufe herunter. Ohne echte Grafikkarte, etwa bei reinem Software-Rendering, nimmt es die 2D-Grafik. Mit `?gfx=2d` oder `?gfx=3d` in der Adresse lässt sich das erzwingen.
 
@@ -79,7 +89,8 @@ Musik und Geräusche werden im Browser erzeugt: gezupfte Gitarre (Karplus-Strong
 | `src/game.js` | Spiellogik: Figuren, Lasso, Knoten, Huckepack, Gefahren, Ziel |
 | `src/levels.js` | Leveldaten und Hinweistafeln |
 | `src/render3d.js` | 3D-Grafik (Three.js): Gelände, Bäume, Licht, Wasser, Woll-Figuren |
-| `src/textures.js` | Prozedurale Texturen mit Normal-Maps |
+| `src/assets3d.js` | Lädt Foto-Texturen und HDR-Himmel |
+| `src/textures.js` | Prozedurale Texturen mit Normal-Maps (Ausweichlösung, Wolle) |
 | `src/render.js` | 2D-Grafik (Ausweichlösung) und die Kamera, Hinweise als Overlay |
 | `src/input.js` | Tastatur, Gamepads, virtuelle Controller, Vibration |
 | `src/touch.js` | Touch-Joystick und Knöpfe (auch der Handy-Controller) |
@@ -87,8 +98,14 @@ Musik und Geräusche werden im Browser erzeugt: gezupfte Gitarre (Karplus-Strong
 | `src/audio.js` | Musik, Naturgeräusche, Effekte |
 | `src/main.js` | Menüs, HUD, Netzwerkrollen, Hauptschleife |
 | `vendor/` | Three.js (gebündelt aus `tools/three-entry.js`), PeerJS, qrcode-generator (alle MIT) |
+| `assets/` | Foto-Texturen und HDRIs, aufbereitet mit `tools/make-assets.py` |
 
 Die Physik läuft mit festem Zeitschritt (120 Hz) und ist unabhängig von der Grafik. Der Faden ist ein Seil mit Höchstlänge, das sich an Blockecken einhakt und wieder löst, so dass man über Kanten abseilen und pendeln kann.
+
+## Quellen
+
+- Texturen (Gras, Erde, Fels, Holz, Laub, Wasser): [Babylon.js Assets](https://github.com/BabylonJS/Assets), Lizenz [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Verkleinert, gleichmäßiger ausgeleuchtet, Normal-Maps teils aus der Helligkeit berechnet.
+- HDR-Himmel (forest, sunrise, sunset, night): [Poly Haven](https://polyhaven.com), Lizenz CC0, über das npm-Paket [@pmndrs/assets](https://github.com/pmndrs/assets).
 
 ## Tests
 
