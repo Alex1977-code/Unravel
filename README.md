@@ -1,4 +1,4 @@
-# Wollweit
+# Verstrickt
 
 *So weit die Wolle reicht.*
 
@@ -80,7 +80,7 @@ Musik und Geräusche werden im Browser erzeugt: gezupfte Gitarre (Karplus-Strong
 
 ## Welten
 
-Wie Unravel hat Wollweit 12 Welten (Unravel Two hat 7 Kapitel plus Herausforderungen). Jede bringt eine eigene Stimmung, Musik und automatisches Wetter mit:
+Wie Unravel hat Verstrickt 12 Welten (Unravel Two hat 7 Kapitel plus Herausforderungen). Jede bringt eine eigene Stimmung, Musik und automatisches Wetter mit:
 
 1. **Morgengarten**: Laufen, Springen, das erste Lasso und ein Schwung über den Teich.
 2. **Alter Steinbruch**: Festhalten, abseilen, am Faden des Partners hinüberschwingen und nachklettern.
