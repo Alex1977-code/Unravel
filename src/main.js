@@ -6,14 +6,19 @@
   const $$ = (s) => Array.from(document.querySelectorAll(s));
   const cv = $('#game');
   const params = new URLSearchParams(location.search);
-  // 3D (WebGL) wenn möglich, sonst die 2D-Grafik
+  // Grafik: immer 3D (WebGL 2). Ohne WebGL 2 lässt sich das Spiel nicht darstellen – dann ein klarer Hinweis.
   let R = null;
-  const gfxPref = params.get('gfx') || FF.store.get('gfx', '3d');
-  if (gfxPref !== '2d' && FF.has3D && FF.has3D(params.get('gfx') === '3d')) {
-    try { R = new FF.Renderer3D($('#gl'), cv); } catch (e) { console.warn('3D nicht verfügbar', e); R = null; }
+  if (params.get('render') === 'off') {
+    // Nur für automatische Tests ohne Grafikkarte: Spiel und Netz laufen, gezeichnet wird nichts
+    R = { keyLabels: null, draw() {}, resize() {}, setWeather() {}, ready: () => true };
+  } else {
+    try { if (FF.has3D()) R = new FF.Renderer3D($('#gl'), cv); } catch (e) { console.warn('3D nicht verfügbar', e); }
   }
-  if (!R) { $('#gl').hidden = true; R = new FF.Renderer(cv); }
-  const is3D = !!FF.Renderer3D && R instanceof FF.Renderer3D;
+  if (!R) {
+    document.body.classList.add('nogl');
+    document.body.innerHTML = '<div class="nogl"><h1 class="logo">Ver<span>strickt</span></h1><p>Dieser Browser kann keine 3D-Grafik (WebGL 2) anzeigen. Bitte öffne das Spiel in einem aktuellen Safari, Chrome, Firefox oder Edge.</p></div>';
+    return;
+  }
   const input = new FF.Input();
   const isTouch = (typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window;
   if (isTouch) { input.device = 'touch'; document.body.classList.add('touch'); }
@@ -517,28 +522,6 @@
   addEventListener('gamepadconnected', (e) => { toast(`Controller verbunden: ${(e.gamepad.id || '').replace(/\(.*?\)/g, '').trim().slice(0, 30)}`); if (screen === 'lobby') renderLobby(); });
   addEventListener('gamepaddisconnected', () => toast('Controller getrennt.'));
 
-  // ------------------------------------------------------------ Grafikstufe
-  const GFX = is3D ? [['high', '3D hoch'], ['medium', '3D mittel'], ['low', '3D einfach'], ['2d', '2D']] : [['high', '2D'], ['3d', '3D']];
-  function gfxName() {
-    if (!is3D) return 'Grafik: 2D';
-    const e = GFX.find((x) => x[0] === R.quality);
-    return 'Grafik: ' + (e ? e[1] : R.quality);
-  }
-  function syncGfx() { $$('#btn-gfx, #btn-gfx2').forEach((b) => (b.textContent = gfxName())); }
-  // Reihenfolge hoch → mittel → einfach → 2D → hoch. Eine selbst gewählte Stufe stellt das Spiel nicht mehr von allein um.
-  function cycleGfx() {
-    FF.store.set('gfxManual', 1);
-    if (!is3D) { FF.store.set('gfx', '3d'); FF.store.set('quality3d', 'high'); location.reload(); return; }
-    const order = ['high', 'medium', 'low', '2d'];
-    const next = order[(order.indexOf(R.quality) + 1) % order.length];
-    if (next === '2d') { FF.store.set('gfx', '2d'); location.reload(); return; }
-    FF.store.set('gfx', '3d');
-    R.quality = next; FF.store.set('quality3d', next); R.dynScale = 1; R.level = null; R.resize();
-    syncGfx();
-    toast(next === 'high' ? 'Grafik: 3D hoch' : next === 'medium' ? 'Grafik: 3D mittel' : 'Grafik: 3D einfach');
-  }
-  syncGfx();
-
   // ------------------------------------------------------------ Wetter
   let weatherPref = FF.store.get('weather', 'auto');
   if (!FF.WEATHER_ORDER.includes(weatherPref)) weatherPref = 'auto';
@@ -564,7 +547,6 @@
       case 'pads': show('pads'); break;
       case 'help': returnTo = screen; show('help'); break;
       case 'fullscreen': goFullscreen(false); break;
-      case 'gfx': cycleGfx(); break;
       case 'weather': cycleWeather(); break;
       case 'back':
         if (screen === 'help') show(returnTo);
@@ -630,7 +612,7 @@
   }
 
   // Größe bei jedem Bild prüfen: iOS meldet Drehen und Leisten-Ein/Ausblenden nicht immer zuverlässig
-  const sizeEl = is3D ? $('#gl') : cv;
+  const sizeEl = $('#gl');
   let lastSize = '';
   function checkSize(force) {
     const v = FF.viewSize(sizeEl), key = v.w + 'x' + v.h + '@' + devicePixelRatio;
@@ -669,7 +651,7 @@
 
   // ------------------------------------------------------------ Schleife
   let last = performance.now();
-  let hudT = 0, slowT = 0, padT = 0, frameMin = 1, frameWin = 0, frameBase = 1 / 60;
+  let hudT = 0, padT = 0;
   function loop(now) {
     const dt = Math.min(0.1, Math.max(0, (now - last) / 1000));
     last = now;
@@ -717,18 +699,6 @@
     else {
       demo.frame(dt, idle);
       R.draw(demo, dt, { pan: true });
-    }
-
-    // Läuft das Gerät zu langsam? Dann auf einfache Grafik umschalten.
-    // Gemessen wird gegen die kürzeste Bilddauer der letzten Sekunden: läuft das Gerät fest mit 30 Bildern
-    // (Stromsparmodus, eingebettete Seite), ist das kein Überlasten.
-    frameMin = Math.min(frameMin, dt); frameWin += dt;
-    if (frameWin > 2) { frameBase = frameMin; frameMin = 1; frameWin = 0; }
-    const slowAt = R.capped ? Math.max(1 / 38, frameBase * 1.45) : 1 / 38;
-    if (R.busy) slowT = -1;
-    else if (dt > slowAt) slowT += dt; else slowT = Math.max(0, slowT - dt * 0.5);
-    if (slowT > 3 && R.quality !== 'low' && !FF.store.get('gfxManual', 0)) {
-      R.setQuality('low'); slowT = 0; syncGfx(); toast('Grafik vereinfacht, damit es flüssig bleibt. Unter „Grafik“ wieder umstellbar.');
     }
 
     hudT -= dt;

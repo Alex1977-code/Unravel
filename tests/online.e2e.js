@@ -14,7 +14,7 @@ const root = path.join(__dirname, '..');
 const web = http.createServer((req, res) => {
   const f = path.join(root, decodeURIComponent(req.url.split('?')[0]));
   if (!f.startsWith(root) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end(); }
-  const type = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png' }[path.extname(f)] || 'application/octet-stream';
+  const type = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg' }[path.extname(f)] || 'application/octet-stream';
   res.writeHead(200, { 'Content-Type': type });
   fs.createReadStream(f).pipe(res);
 });
@@ -24,10 +24,11 @@ const web = http.createServer((req, res) => {
   const app = express();
   const ps = app.listen(9010, '127.0.0.1');
   app.use('/', ExpressPeerServer(ps, { path: '/' }));
-  const q = 'peerhost=127.0.0.1&peerport=9010&peerpath=/&gfx=2d';
+  // Getestet werden Netz und Steuerung; die 3D-Grafik bleibt aus (render=off), ohne Grafikkarte wäre sie zu langsam
+  const q = 'peerhost=127.0.0.1&peerport=9010&peerpath=/&render=off';
   const b = await chromium.launch();
   const errs = [];
-  const open = async (url, opts) => { const c = await b.newContext(opts || { viewport: { width: 1000, height: 600 } }); const p = await c.newPage(); p.on('pageerror', (e) => errs.push(e.message)); await p.goto(url, { waitUntil: 'domcontentloaded' }); return p; };
+  const open = async (url, opts) => { const c = await b.newContext(opts || { viewport: { width: 480, height: 270 } }); const p = await c.newPage(); p.on('pageerror', (e) => errs.push(e.message)); await p.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 }); return p; };
   try {
     // Online: Gastgeber + Mitspieler mit eigenem Bildschirm
     const host = await open(`http://127.0.0.1:8790/index.html?${q}`);

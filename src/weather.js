@@ -27,7 +27,7 @@
   // Pollen, Mücken und Glühwürmchen fliegen nicht bei Regen oder Schnee; fallendes Laub schon bei Sturm
   FF.ambientOk = (amb, v) => (amb === 'leaves' ? v.snow < 0.3 : v.rain < 0.3 && v.snow < 0.3);
 
-  // Weich überblendeter Zustand, von beiden Renderern genutzt
+  // Weich überblendeter Zustand
   class WeatherState {
     constructor() {
       this.name = null;
@@ -54,7 +54,7 @@
   }
   FF.WeatherState = WeatherState;
 
-  // Blitz im Himmel (Bildschirmkoordinaten), für beide Renderer
+  // Blitz im Himmel (Bildschirmkoordinaten), auf der Überlagerung über der 3D-Grafik
   FF.drawBolt = function (ctx, W_, H_, ws) {
     if (ws.bolt <= 0.02) return;
     const a = ws.bolt;
@@ -78,42 +78,4 @@
     ctx.restore();
   };
 
-  // Einfache Regen-/Schneedarstellung für die 2D-Grafik (Bildschirmraum)
-  FF.Weather2D = class {
-    constructor() { this.p = []; }
-    draw(ctx, W_, H_, v, dt, t) {
-      const want = Math.round((v.rain * 520 + v.snow * 320) * (W_ * H_) / (1280 * 720));
-      while (this.p.length < want) this.p.push({ x: Math.random() * W_, y: Math.random() * H_, z: 0.4 + Math.random() * 0.6, s: Math.random() });
-      if (this.p.length > want) this.p.length = want;
-      if (!this.p.length) return;
-      const u = H_ / 720;
-      ctx.save();
-      if (v.rain > 0.02) {
-        ctx.strokeStyle = `rgba(200,215,235,${0.35 * Math.min(1, v.rain * 1.5)})`;
-        ctx.lineWidth = Math.max(1, u);
-        ctx.beginPath();
-        const vx = 120 + v.wind * 260, vy = 1300;
-        for (const p of this.p) {
-          p.x += vx * p.z * dt * u; p.y += vy * p.z * dt * u;
-          if (p.y > H_) { p.y -= H_ + 20; p.x = Math.random() * W_; }
-          if (p.x > W_) p.x -= W_;
-          const l = 16 * p.z * u;
-          ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - vx / vy * l, p.y - l);
-        }
-        ctx.stroke();
-      } else {
-        ctx.fillStyle = 'rgba(245,248,255,0.85)';
-        for (const p of this.p) {
-          p.y += (40 + 50 * p.z) * dt * u;
-          p.x += (Math.sin(t * 0.8 + p.s * 30) * 22 + v.wind * 40) * p.z * dt * u;
-          if (p.y > H_) { p.y -= H_ + 10; p.x = Math.random() * W_; }
-          if (p.x > W_) p.x -= W_;
-          if (p.x < 0) p.x += W_;
-          ctx.globalAlpha = 0.5 + p.z * 0.5;
-          ctx.beginPath(); ctx.arc(p.x, p.y, (1 + p.z * 2.2) * u, 0, 6.283); ctx.fill();
-        }
-      }
-      ctx.restore();
-    }
-  };
 })();

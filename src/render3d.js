@@ -12,16 +12,11 @@
   const FOV = 32;
   const CH = 700;        // Breite eines Szenenabschnitts
 
-  FF.has3D = function (force) {
+  FF.has3D = function () {
     if (!globalThis.THREE) return false;
     try {
       const c = document.createElement('canvas');
-      const gl = c.getContext('webgl2') || c.getContext('webgl');
-      if (!gl) return false;
-      if (force) return true;
-      const ext = gl.getExtension('WEBGL_debug_renderer_info');
-      const name = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '';
-      return !/swiftshader|llvmpipe|software|basic render/i.test(name);
+      return !!c.getContext('webgl2');
     } catch (e) { return false; }
   };
 
@@ -263,7 +258,6 @@
       this.THREE = THREE;
       this.gl = glCanvas;
       this.r2 = new FF.Renderer(overlayCanvas);
-      this.quality = FF.store.get('quality3d', null) || ((matchMedia('(pointer: coarse)').matches || /TV|SMART|Tizen|Web0S|AFT/i.test(navigator.userAgent)) ? 'medium' : 'high');
       this.renderer = new THREE.WebGLRenderer({ canvas: glCanvas, antialias: true, powerPreference: 'high-performance', stencil: false });
       this.renderer.outputColorSpace = THREE.SRGBColorSpace;
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -296,20 +290,9 @@
 
     basePixelRatio() {
       const d = Math.min(2, devicePixelRatio || 1);
-      return this.quality === 'high' ? Math.min(d, 1.5) : this.quality === 'medium' ? Math.min(d, 1) : 0.75;
+      return Math.min(d, 1.5);
     }
     pixelRatio() { return this.basePixelRatio() * this.dynScale; }
-
-    // Vom Hauptprogramm, wenn es dauerhaft ruckelt: erst Auflösung, dann Qualitätsstufe senken
-    setQuality(q) {
-      if (q === 'low' && this.dynScale > 0.62) { this.dynScale = 0.6; this.applyResolution(); return; }
-      if (q === 'low' && this.quality === 'high') q = 'medium';
-      this.quality = q;
-      FF.store.set('quality3d', q);
-      this.dynScale = 1;
-      this.level = null;
-      this.resize();
-    }
 
     resize() {
       this.r2.resize();
@@ -352,10 +335,10 @@
       const THREE = this.THREE, R = this.renderer;
       if (this.composer) { this.composer.dispose && this.composer.dispose(); }
       this.composer = null; this.dof = null; this.fx = null;
-      if (this.quality === 'low' || !this.scene) return;
+      if (!this.scene) return;
       const w = this.cssW, h = this.cssH, pr = this.pixelRatio();
       const rt = new THREE.WebGLRenderTarget(Math.round(w * pr), Math.round(h * pr), {
-        type: THREE.HalfFloatType, samples: this.quality === 'high' ? 4 : 0,
+        type: THREE.HalfFloatType, samples: 4,
       });
       rt.depthTexture = new THREE.DepthTexture(Math.round(w * pr), Math.round(h * pr));
       const comp = new THREE.EffectComposer(R, rt);
@@ -365,8 +348,8 @@
       comp.setPixelRatio(pr);
       comp.setSize(w, h);
       comp.addPass(new THREE.RenderPass(this.scene, this.camera));
-      this.fx = new this.FXPass(this.quality === 'high');
-      if (this.quality === 'high') this.dof = this.fx;
+      this.fx = new this.FXPass(true);
+      this.dof = this.fx;
       comp.addPass(this.fx);
       this.bloom = new THREE.UnrealBloomPass(new THREE.Vector2(w / 2, h / 2), 0.5, 0.6, 0.85);
       comp.addPass(this.bloom);
@@ -428,16 +411,16 @@
       const L = g.L, th = FF.THEMES[L.theme];
       this.th = th;
       this.photo = !!A;
-      this.tex = FF.textures(L.theme, this.quality === 'high');
+      this.tex = FF.textures(L.theme, true);
       this.A = A;
       this.tint = TINT[L.theme] || TINT.garden;
       this.level3dTheme = L.theme;
       const scene = (this.scene = new THREE.Scene());
       scene.fog = new THREE.FogExp2(col(`rgb(${th.haze})`), (L.theme === 'quarry' ? 0.00026 : 0.0002) * (this.tint.fog || 1));
       this.renderer.toneMappingExposure = NIGHT.has(L.theme) ? 1.3 : 1.0;
-      this.renderer.shadowMap.enabled = this.quality !== 'low';
+      this.renderer.shadowMap.enabled = true;
       const rnd = FF.rng(g.levelIndex * 131 + 7);
-      this.q = this.quality === 'high' ? 1 : this.quality === 'medium' ? 0.6 : 0.3;
+      this.q = 1;
       this.mats = this.makeMaterials();
       this.waterMats = [];
       this.buildSkyAndLight(g);
@@ -620,8 +603,8 @@
       scene.add(hemi);
       this.hemi = hemi;
       const key = new THREE.DirectionalLight(col(`rgb(${th.light})`).lerp(col('#ffffff'), 0.35), dusk ? 1.0 : 1.9);
-      key.castShadow = this.quality !== 'low';
-      const sm = this.quality === 'high' ? 2048 : 1024;
+      key.castShadow = true;
+      const sm = 2048;
       key.shadow.mapSize.set(sm, sm);
       key.shadow.bias = -0.0005;
       key.shadow.normalBias = 0.8;
@@ -1107,7 +1090,7 @@
 
       // Lichtbahnen durch den Wald
       this.shafts = [];
-      if (th.rays && this.quality !== 'low') {
+      if (th.rays) {
         const c = document.createElement('canvas');
         c.width = 64; c.height = 256;
         const x = c.getContext('2d');
@@ -1133,7 +1116,7 @@
 
       // Vordergrund nah an der Kamera (unscharf im hohen Modus)
       this.fg = null;
-      if (this.quality !== 'low') {
+      {
         const fgM = this.foliage(mats.plant.clone(), this.photo ? this.tint.recolor : 0, 3);
         fgM.color = col('#2c2c2c');
         fgM.emissive = col('#000000');
@@ -1379,7 +1362,7 @@
         const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 15, 6), new THREE.MeshStandardMaterial({ color: col('#4a3a2e'), roughness: 0.5, metalness: 0.4 }));
         turn.add(wire);
         const head = this.yarnBall(6.2, [FF.COLORS[id], FF.COLORS_DARK[id]], 20, 0.62, rnd);
-        if (this.quality !== 'low') {
+        {
           const fz = this.fuzzMaterial(FF.COLORS[id]);
           head.add(new THREE.Mesh(new THREE.SphereGeometry(6.9, 18, 14), fz));
           const bf = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), fz);
@@ -1520,7 +1503,7 @@
     }
 
     // ------------------------------------------------------------ Fäden
-    // Durchhängende Kurve durch die Seilpunkte in den Puffer schreiben (wie im 2D-Renderer)
+    // Durchhängende Kurve durch die Seilpunkte in den Puffer schreiben
     ropePoints(pts2d, slack, sagK) {
       const out = this.ropeBuf, max = out.length / 3, solids = this.game ? this.game.world.solids : [];
       let total = 0, n = 0;
@@ -1809,7 +1792,7 @@
     // fällt und in ein Fenster um die Kamera gefaltet wird. In der Welt verankert, darum stimmt die Bewegung beim Laufen.
     buildPrecip(g, rnd) {
       const THREE = this.THREE;
-      const scale = this.quality === 'high' ? 1 : this.quality === 'medium' ? 0.65 : 0.35;
+      const scale = 1;
       const quad = new THREE.PlaneGeometry(1, 1);
       const inst = (count, size, fill) => {
         const geo = new THREE.InstancedBufferGeometry();

@@ -2,7 +2,7 @@
 
 *So weit die Wolle reicht.*
 
-Ein kleiner 2D-Plattformer im Geist von *Unravel Two*: zwei Wollfiguren, Rot und Blau, hängen am selben Faden. Sie werfen Lassos an Haken, schwingen über Wasser, seilen sich gegenseitig ab, schieben Kisten und knüpfen Fäden zu Trampolinen. Man kann allein spielen oder zu zweit an einem Rechner.
+Ein 3D-Plattformer im Geist von *Unravel* und *Unravel Two*: zwei Wollfiguren, Rot und Blau, hängen am selben Faden. Sie werfen Lassos an Haken, schwingen über Wasser, seilen sich gegenseitig ab, schieben Kisten und knüpfen Fäden zu Trampolinen. Man kann allein spielen oder zu zweit an einem Rechner.
 
 Läuft komplett im Browser und braucht keine Installation und keinen Build-Schritt.
 
@@ -72,7 +72,7 @@ Ein Level wird beim Start ein paar Sekunden aufgebaut; solange steht das Spiel. 
 
 Wird `index.html` direkt von der Festplatte geöffnet (`file://`), erlaubt der Browser WebGL keine Bilddateien; dann nimmt die 3D-Grafik berechnete Texturen. Die Einzeldatei (`node tools/build.js`) und die GitHub-Pages-Seite enthalten die Fotos.
 
-Unter „Grafik“ (Titel und Pause) lässt sich die Stufe wählen: 3D hoch, mittel, einfach oder 2D. Auf Handys und Fernsehern startet das Spiel mit „mittel“. Läuft es zu langsam, senkt es erst die Auflösung und dann die Stufe; eine selbst gewählte Stufe bleibt aber stehen. Eine feste Obergrenze von 30 Bildern pro Sekunde (etwa im Stromsparmodus) gilt nicht als Überlastung. Ohne echte Grafikkarte, etwa bei reinem Software-Rendering, nimmt es die 2D-Grafik. Mit `?gfx=2d` oder `?gfx=3d` in der Adresse lässt sich das erzwingen.
+Es gibt eine einzige Grafikstufe: 3D in voller Qualität. Damit es auch auf schwächeren Geräten flüssig bleibt, passt sich die Auflösung laufend an; eine feste Obergrenze von 30 Bildern pro Sekunde (etwa im Stromsparmodus) gilt dabei nicht als Überlastung. Nötig ist ein Browser mit WebGL 2 (alle aktuellen Browser).
 
 ## Klang
 
@@ -105,9 +105,9 @@ Wie Unravel hat Verstrickt 12 Welten (Unravel Two hat 7 Kapitel plus Herausforde
 | `src/levels.js` | Leveldaten und Hinweistafeln |
 | `src/render3d.js` | 3D-Grafik (Three.js): Gelände, Bäume, Licht, Wasser, Woll-Figuren |
 | `src/assets3d.js` | Lädt Foto-Texturen und HDR-Himmel |
-| `src/textures.js` | Prozedurale Texturen mit Normal-Maps (Ausweichlösung, Wolle) |
-| `src/weather.js` | Wetter: Kenngrößen, Überblendung, Blitz, Regen und Schnee für die 2D-Grafik |
-| `src/render.js` | 2D-Grafik (Ausweichlösung) und die Kamera, Hinweise als Overlay |
+| `src/textures.js` | Berechnete Texturen (Wolle, Rinde, Leuchten; Ersatz, falls die Fotos fehlen) |
+| `src/weather.js` | Wetter: Kenngrößen, Überblendung, Blitz |
+| `src/render.js` | Farbwelten, Kamera, Hinweistafeln und Funken als Überlagerung |
 | `src/input.js` | Tastatur, Gamepads, virtuelle Controller, Vibration |
 | `src/touch.js` | Touch-Steuerung im Gamepad-Look (auch der Handy-Controller) |
 | `src/net.js` | Online-Spiel: Räume, Eingaben, Zustandsbilder |
