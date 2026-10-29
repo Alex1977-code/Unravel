@@ -493,3 +493,7 @@ body.tv .hud-chip { font-size: 18px; }
   .levels-panel .level-card { padding: 6px 10px; gap: 10px; grid-template-columns: 42px 1fr; }
   .levels-panel .level-card .meta { display: none; }
 }
+
+.tagline { margin: 2px 0 0; font: italic 400 clamp(16px, 2.2vw, 20px) var(--display); color: var(--linen-dim); letter-spacing: 0.01em; text-shadow: 0 1px 12px rgba(0, 0, 0, 0.6); }
+@media (max-height: 520px) { .tagline { font-size: 14px; } }
+.logo span { margin-left: 0.05em; }

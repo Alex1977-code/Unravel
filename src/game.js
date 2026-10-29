@@ -41,6 +41,8 @@
         })),
         bridges: [],
         critters: (L.critters || []).map(([x0, x1, y, kind, speed], id) => ({ x0, x1, y, kind, speed: speed || 50, id })),
+        // Gruben ohne Ausweg: Sind beide darin, geht es zurück zum letzten Zwischenstand
+        traps: (L.traps || []).map(([x0, x1, y]) => ({ x0, x1, y })),
       });
       this.beads = (L.beads || []).map(([x, y]) => ({ x, y, got: false, t: 0 }));
       this.checkpoints = (L.checkpoints || []).map(([x, y]) => ({ x, y, on: false }));
@@ -517,6 +519,17 @@
           }
         }
       }
+      // Beide in einer Grube, aus der man nicht herauskommt? Kurz warten, dann zurück zum Zwischenstand.
+      if (W.traps.length) {
+        const bodies = this.players.map((p) => (p.merged ? this.players[p.carrier] : p));
+        const trapped = W.traps.some((t) => bodies.every((q) => q.x + q.w / 2 > t.x0 && q.x + q.w / 2 < t.x1 && q.y + q.h > t.y));
+        this.trapT = trapped ? (this.trapT || 0) + C.DT : 0;
+        if (this.trapT > 2.2) {
+          this.trapT = 0;
+          this.toast('Aus der Grube kommt ihr nicht heraus – zurück zum Zwischenstand.');
+          return this.die(this.players[this.active], 'trap');
+        }
+      }
       const g = this.goal;
       const inGoal = (p) => {
         const q = p.merged ? this.players[p.carrier] : p;
@@ -536,7 +549,7 @@
       if (this.state !== 'play') return;
       this.state = 'dying'; this.stateT = 0;
       if (why === 'water') { this.splash(p.x + p.w / 2, w.y, 1.4); sfx('splash'); }
-      else sfx('ouch');
+      else if (why !== 'trap') sfx('ouch');
       this.deadId = p.id; this.deathWhy = why;
       this.events.push({ type: 'fb', who: 0, s: 0.9, ms: 260 }, { type: 'fb', who: 1, s: 0.9, ms: 260 });
     }

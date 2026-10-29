@@ -1,7 +1,7 @@
 {
-  "name": "Fadenfreunde",
-  "short_name": "Fadenfreunde",
-  "description": "Garn-Plattformer für eine oder zwei Personen.",
+  "name": "Wollweit – So weit die Wolle reicht",
+  "short_name": "Wollweit",
+  "description": "Zwei Wollfiguren, ein Faden: Rätsel-Abenteuer für eine oder zwei Personen.",
   "lang": "de",
   "start_url": "./",
   "scope": "./",

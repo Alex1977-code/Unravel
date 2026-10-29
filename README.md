@@ -1,4 +1,6 @@
-# Fadenfreunde
+# Wollweit
+
+*So weit die Wolle reicht.*
 
 Ein kleiner 2D-Plattformer im Geist von *Unravel Two*: zwei Wollfiguren, Rot und Blau, hängen am selben Faden. Sie werfen Lassos an Haken, schwingen über Wasser, seilen sich gegenseitig ab, schieben Kisten und knüpfen Fäden zu Trampolinen. Man kann allein spielen oder zu zweit an einem Rechner.
 
@@ -78,7 +80,7 @@ Musik und Geräusche werden im Browser erzeugt: gezupfte Gitarre (Karplus-Strong
 
 ## Welten
 
-Wie Unravel hat Fadenfreunde 12 Welten (Unravel Two hat 7 Kapitel plus Herausforderungen). Jede bringt eine eigene Stimmung, Musik und automatisches Wetter mit:
+Wie Unravel hat Wollweit 12 Welten (Unravel Two hat 7 Kapitel plus Herausforderungen). Jede bringt eine eigene Stimmung, Musik und automatisches Wetter mit:
 
 1. **Morgengarten**: Laufen, Springen, das erste Lasso und ein Schwung über den Teich.
 2. **Alter Steinbruch**: Festhalten, abseilen, am Faden des Partners hinüberschwingen und nachklettern.

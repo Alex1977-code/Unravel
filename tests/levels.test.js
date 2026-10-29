@@ -88,6 +88,17 @@ test('Ohne Festhalten wird der Partner mitgerissen', () => {
   assert(d.p(0).y + d.p(0).h > 800, 'Rot liegt unten im Steinbruch: ' + d.info(0));
 });
 
+test('Beide in der Grube: zurück zum Zwischenstand statt festzustecken', () => {
+  for (const [id, x, y] of [['steinbruch', 790, 450], ['kueste', 2090, 500], ['schrottplatz', 2890, 160], ['nordlicht', 2190, 455]]) {
+    const d = new Driver(FF, FF.LEVELS.findIndex((l) => l.id === id), 'coop');
+    d.put(0, x, y); d.put(1, x - 25, y); d.run(0.2);
+    assert(d.until((g) => g.state === 'dying', 10, { right: 1 }, { right: 1 }), id + ': kein Neustart');
+    d.run(1.2);
+    assert.strictEqual(d.g.state, 'play', id);
+    assert(d.p(0).y + d.p(0).h <= y + 1 || d.p(0).x < x, id + ': wieder oben ' + d.info(0));
+  }
+});
+
 test('Kiste auf dem Teich treibt ans andere Ufer (Level 3)', () => {
   const d = new Driver(FF, 2, 'coop');
   const c = d.g.world.crates[1];
