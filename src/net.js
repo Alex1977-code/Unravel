@@ -73,6 +73,8 @@
         let opened = false;
         peer.on('open', () => {
           opened = true; this.peer = peer; this.code = code;
+          // Zusätzlich über den Vermittler erreichbar, für Gäste ohne direkten Weg
+          if (FF.HostRelay) { this.relay = new FF.HostRelay(code, (c) => this.accept(c)); this.relay.start(); }
           // Wer länger nichts schickt, gilt als getrennt (geschlossene Tabs merkt WebRTC sonst erst spät).
           this.watch = setInterval(() => {
             const now = performance.now();
@@ -148,6 +150,7 @@
       if (!m || typeof m !== 'object') return;
       switch (m.t) {
         case 'hello': {
+          if (this.clients.has(info.id)) { this.send(info, { t: 'welcome', slot: info.slot, role: info.role }); break; }
           info.role = m.role === 'pad' ? 'pad' : 'player';
           info.name = String(m.name || '').slice(0, 20);
           info.slot = this.h.assignSlot(info);
@@ -179,6 +182,7 @@
         globalThis.removeEventListener('pageshow', this.onWake);
       }
       try { this.peer && this.peer.destroy(); } catch (e) { /* egal */ }
+      if (this.relay) this.relay.close();
       this.clients.clear();
     }
   }
@@ -186,74 +190,107 @@
   // -------------------------------------------------------------- Gast / Controller
   class Client {
     constructor(h) { this.h = h; } // { onMessage(m), onClose(), onError(text), onStatus(text) }
+    // Zuerst direkt (WebRTC). Klappt das nicht schnell, parallel der Umweg über den Vermittler (relay.js).
+    // Die Begrüßung geht nur über den Weg, der zuerst offen ist; der andere wird geschlossen.
     async join(code, role, name) {
       const status = (t) => this.h.onStatus && this.h.onStatus(t);
       status('Lade …');
       await ensurePeer();
       code = FF.cleanCode(code);
+      const relayOnly = new URLSearchParams(location.search).get('relayonly') === '1';
       return new Promise((resolve, reject) => {
-        status('Verbinde mit dem Vermittlungsserver …');
-        const peer = new globalThis.Peer(undefined, peerOptions());
-        this.peer = peer;
-        let done = false, tries = 0, reached = false, retry = 0;
+        let done = false, tries = 0, found = false, hello = null, retry = 0, relayT = 0, relayStarted = false, helloT = 0;
+        const conns = new Set();
         const fail = (t) => {
           if (done) return;
-          done = true; clearTimeout(timer); clearTimeout(retry);
-          try { peer.destroy(); } catch (e) { /* egal */ }
+          done = true; clearTimeout(timer); clearTimeout(retry); clearTimeout(relayT); clearInterval(helloT);
+          for (const c of conns) { try { c.close(); } catch (e) { /* egal */ } }
+          try { peer && peer.destroy(); } catch (e) { /* egal */ }
           reject(new Error(t));
         };
         this.cancel = () => fail('Abgebrochen.');
-        const timer = setTimeout(() => fail(reached
-          ? 'Raum gefunden, aber die Geräte kommen nicht zueinander. Versucht es im selben WLAN oder mit Mobilfunk statt WLAN.'
-          : 'Der Raum antwortet nicht. Stimmt der Code und ist der Raum beim Gastgeber noch offen?'), 40000);
+        const timer = setTimeout(() => fail(found
+          ? 'Raum gefunden, aber keine Verbindung möglich. Prüft, ob beide online sind, und versucht es nochmal.'
+          : 'Der Raum antwortet nicht. Stimmt der Code und ist der Raum beim Gastgeber noch offen?'), 45000);
+
+        // Gemeinsame Behandlung für beide Wege
+        const wire = (conn, sendHello) => {
+          conns.add(conn);
+          conn.on('data', (m) => {
+            if (done) { if (conn === this.conn) { if (m && m.t === 'pong') this.rtt = performance.now() - m.at; else this.h.onMessage(m); } return; }
+            if (conn !== hello) return;
+            if (m && m.t === 'welcome') {
+              done = true; clearTimeout(timer); clearTimeout(retry); clearTimeout(relayT); clearInterval(helloT);
+              this.conn = conn; this.via = conn instanceof FF.GuestRelay ? 'relay' : 'direct';
+              for (const c of conns) if (c !== conn) { try { c.close(); } catch (e) { /* egal */ } }
+              if (this.via === 'relay') { try { peer && peer.destroy(); } catch (e) { /* egal */ } }
+              resolve(m);
+            } else if (m && m.t === 'full') fail('Der Raum ist schon voll.');
+          });
+          conn.on('close', () => { conns.delete(conn); if (done && conn === this.conn) this.h.onClose(); });
+          if (sendHello) sendHello();
+        };
+        const greet = (conn) => {
+          if (hello || done) { if (conn !== hello) { try { conn.close(); } catch (e) { /* egal */ } } return; }
+          hello = conn;
+          found = true;
+          status('Verbunden, warte auf den Gastgeber …');
+          conn.send({ t: 'hello', role, name });
+          // Über den Vermittler kann die erste Nachricht verloren gehen, wenn der Raum gerade erst lauscht
+          if (conn instanceof FF.GuestRelay) helloT = setInterval(() => { if (!done) conn.send({ t: 'hello', role, name }); }, 3000);
+        };
+
+        const startRelay = () => {
+          if (relayStarted || done || hello) return;
+          relayStarted = true;
+          status('Direkter Weg klappt nicht – verbinde über den Umweg …');
+          FF.GuestRelay.connect(code).then((rc) => {
+            if (done || hello) { rc.close(); return; }
+            wire(rc, () => greet(rc));
+          }).catch(() => { if (!done && !hello) status('Umweg nicht erreichbar, versuche weiter direkt …'); });
+        };
+
+        let peer = null;
+        if (relayOnly) { startRelay(); return; }
+        status('Verbinde mit dem Vermittlungsserver …');
+        peer = new globalThis.Peer(undefined, peerOptions());
+        this.peer = peer;
         peer.on('error', (e) => {
-          if (done) { this.h.onError && this.h.onError(errText(e)); return; }
+          if (done) { if (this.via === 'direct') this.h.onError && this.h.onError(errText(e)); return; }
           // Raum (noch) nicht da, z. B. weil der Gastgeber gerade die App gewechselt hat: nochmal versuchen
-          if (e.type === 'peer-unavailable' && tries < 4) { clearTimeout(retry); retry = setTimeout(attempt, 2500); status('Suche den Raum ' + code + ' …'); return; }
-          fail(errText(e));
+          if (e.type === 'peer-unavailable' && tries < 5) { clearTimeout(retry); retry = setTimeout(attempt, 2500); status('Suche den Raum ' + code + ' …'); return; }
+          // Vermittlungsserver nicht erreichbar: der Umweg kann trotzdem gehen
+          if (['network', 'server-error', 'socket-error', 'socket-closed'].includes(e.type)) { startRelay(); return; }
+          if (!relayStarted) fail(errText(e));
         });
         peer.on('disconnected', () => { if (!done) { try { peer.reconnect(); } catch (e) { /* egal */ } } });
         const attempt = () => {
-          if (done) return;
+          if (done || hello) return;
           tries++;
-          if (this.conn) { try { this.conn.close(); } catch (e) { /* egal */ } }
           const conn = peer.connect(PREFIX + code, { reliable: true, serialization: 'json' });
-          this.conn = conn;
-          status(tries > 1 ? `Verbinde mit Raum ${code} (Versuch ${tries}) …` : `Verbinde mit Raum ${code} …`);
-          // Nach 12 Sekunden ohne Kanal ein neuer Anlauf (der Weg über den Weiterleitungsserver braucht manchmal länger)
-          clearTimeout(retry);
-          retry = setTimeout(() => { if (!done && !conn.open && tries < 3) attempt(); }, 12000);
-          conn.on('open', () => {
-            if (conn !== this.conn) return;
-            reached = true;
-            status('Verbunden, warte auf den Gastgeber …');
-            conn.send({ t: 'hello', role, name });
-          });
-          conn.on('data', (m) => {
-            if (conn !== this.conn) return;
-            if (!done) {
-              if (m && m.t === 'welcome') { done = true; clearTimeout(timer); clearTimeout(retry); resolve(m); }
-              else if (m && m.t === 'full') fail('Der Raum ist schon voll.');
-              return;
-            }
-            if (m && m.t === 'pong') { this.rtt = performance.now() - m.at; return; }
-            this.h.onMessage(m);
-          });
-          conn.on('close', () => { if (conn !== this.conn) return; if (done) this.h.onClose(); else if (reached) fail('Verbindung abgelehnt.'); });
-          // ICE-Zustand verrät, ob der Raum gefunden wurde und nur der Weg fehlt
+          status(`Verbinde mit Raum ${code} …`);
+          wire(conn);
+          conn.on('open', () => greet(conn));
           setTimeout(() => {
             const pc = conn.peerConnection;
             if (pc) pc.addEventListener('iceconnectionstatechange', () => {
-              if (!done && conn === this.conn && (pc.iceConnectionState === 'checking')) { reached = true; status('Raum gefunden, baue die Verbindung auf …'); }
+              if (done || hello) return;
+              const st = pc.iceConnectionState;
+              if (st === 'checking') { found = true; status('Raum gefunden, baue die Verbindung auf …'); clearTimeout(relayT); relayT = setTimeout(startRelay, 5000); }
+              if (st === 'failed' || st === 'disconnected') startRelay();
             });
           }, 0);
         };
-        peer.on('open', attempt);
+        peer.on('open', () => { attempt(); relayT = setTimeout(startRelay, 9000); });
       });
     }
     send(m) { try { if (this.conn && this.conn.open) this.conn.send(m); } catch (e) { /* egal */ } }
     ping() { this.send({ t: 'ping', at: performance.now() }); }
-    close() { if (this.cancel) this.cancel(); try { this.peer && this.peer.destroy(); } catch (e) { /* egal */ } }
+    close() {
+      if (this.cancel) this.cancel();
+      try { if (this.conn) this.conn.close(); } catch (e) { /* egal */ }
+      try { this.peer && this.peer.destroy(); } catch (e) { /* egal */ }
+    }
   }
 
   // -------------------------------------------------------------- Zustandsbilder
