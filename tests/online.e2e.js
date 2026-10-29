@@ -79,6 +79,21 @@ const web = http.createServer((req, res) => {
     await h3.evaluate(() => FF.debug.openRoom(false, 'LT33'));
     await g3.waitForFunction(() => FF.debug.net && FF.debug.net.slot === 1, null, { timeout: 20000 });
     console.log('  ✓ Gast wartet auf einen Raum, der erst gleich öffnet');
+
+    // Ein Handy, zwei Bluetooth-Controller (z. B. auf den Fernseher gespiegelt): keine Touch-Tasten im Bild
+    const ph = await open(`http://127.0.0.1:8790/index.html?${q}`, { viewport: { width: 800, height: 400 }, hasTouch: true, isMobile: true });
+    await ph.evaluate(() => {
+      const mk = (i) => ({ index: i, id: 'Test-Controller ' + i, axes: [0, 0], buttons: Array.from({ length: 16 }, () => ({ pressed: false, value: 0 })) });
+      globalThis.__pads = [mk(0), mk(1)];
+      navigator.getGamepads = () => globalThis.__pads;
+      FF.debug.setMode('coop'); FF.debug.startLevel(0);
+    });
+    await ph.waitForFunction(() => FF.debug.screen === 'play', null, { timeout: 10000 });
+    await ph.waitForTimeout(600);
+    assert(await ph.evaluate(() => document.querySelector('#touch').hidden), 'Zwei Controller: Touch-Tasten ausgeblendet');
+    await ph.evaluate(() => { globalThis.__pads = [globalThis.__pads[0]]; });
+    await ph.waitForFunction(() => !document.querySelector('#touch').hidden, null, { timeout: 3000 });
+    console.log('  ✓ Zwei Bluetooth-Controller am Handy: Touch-Tasten verschwinden, mit einem kommen sie zurück');
   } finally {
     await b.close(); web.close(); ps.close();
   }

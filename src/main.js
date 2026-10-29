@@ -42,7 +42,7 @@
 
   // ------------------------------------------------------------ Bildschirme
   const screens = ['title', 'levels', 'help', 'pause', 'win', 'online', 'lobby', 'tv', 'pads', 'guest'];
-  let navSel = null;
+  let navSel = null, wake = null;
   function show(name) {
     screen = name;
     for (const s of screens) $('#scr-' + s).hidden = s !== name;
@@ -52,6 +52,9 @@
     $$('.host-only').forEach((el) => (el.hidden = !!(net && net.role === 'guest')));
     updateTouch();
     input.captureGame = name === 'play';
+    // Beim Spielen mit Controllern wird der Bildschirm nicht berührt; ohne Wachhalten ginge er aus (und das Spiegeln mit)
+    if (name === 'play' || (net && (net.role === 'pad' || net.tv))) keepAwake();
+    else if (!net) stopWake();
     if (name !== 'play') {
       const first = document.querySelector('#scr-' + name + ' [data-default]') || document.querySelector('#scr-' + name + ' .btn:not([hidden])');
       navSel = first;
@@ -64,8 +67,17 @@
     }
   }
 
+  // Touch-Tasten nur, wenn sie gebraucht werden: Sind genug Bluetooth-Controller verbunden (zu zweit zwei, allein einer),
+  // bleiben sie weg – so sieht man sie auch nicht, wenn das Handy oder Tablet auf den Fernseher gespiegelt wird.
+  let touchSig = '';
+  function padsCover() {
+    const n = input.pads.filter((p) => input.assignment(p) !== 'off').length;
+    return mode === 'solo' ? n >= 1 : n >= 2;
+  }
+  const touchWanted = () => screen === 'play' && (isTouch || input.device === 'touch') && !(net && net.tv) && !padsCover();
   function updateTouch() {
-    const want = screen === 'play' && (isTouch || input.device === 'touch') && !(net && net.tv);
+    const want = touchWanted();
+    touchSig = screen + want;
     $('#touch').hidden = !want;
     touchPad.setSolo(mode === 'solo');
     if (want) input.setVirtual('touch', 0, touchPad.state);
@@ -292,7 +304,7 @@
       let txt = 'wartet …';
       if (occ && occ.kind === 'local') txt = 'dieses Gerät';
       else if (occ) txt = occ.info.role === 'pad' ? 'Handy-Controller' : 'eigener Bildschirm';
-      else if (net.tv && input.pads.length > s) txt = 'Gamepad an diesem Gerät';
+      else if (net.tv && input.pads.length > [0, 1].filter((k) => !net.slots[k]).indexOf(s)) txt = 'Controller an diesem Gerät';
       li.innerHTML = `<span class="who-dot" style="background:${FF.COLORS[s]}"></span><b>${NAMES[s]}</b><span>${txt}</span>`;
       li.className = occ ? 'on' : '';
       ul.appendChild(li);
@@ -471,8 +483,10 @@
   $('#pad-pause').addEventListener('click', () => { if (net && padTouch) { padTouch.state.n.pause++; net.client.send({ t: 'in', s: padTouch.state }); } });
   $('#pad-leave').addEventListener('click', () => { closeNet(); hidePad(); show('title'); });
 
-  let wake = null;
-  function keepAwake() { try { navigator.wakeLock && navigator.wakeLock.request('screen').then((w) => (wake = w)).catch(() => {}); } catch (e) { /* egal */ } }
+  function keepAwake() {
+    if (wake && !wake.released) return;
+    try { navigator.wakeLock && navigator.wakeLock.request('screen').then((w) => (wake = w)).catch(() => {}); } catch (e) { /* egal */ }
+  }
   function stopWake() { try { wake && wake.release(); } catch (e) { /* egal */ } wake = null; }
 
   // ------------------------------------------------------------ Chromecast (Presentation API)
@@ -659,7 +673,7 @@
   addEventListener('pointerdown', () => FF.audio.init(), { once: true });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && screen === 'play' && !(net && net.role === 'guest')) show('pause');
-    if (!document.hidden && net && net.role === 'pad') keepAwake();
+    if (!document.hidden && (screen === 'play' || (net && (net.role === 'pad' || net.tv)))) keepAwake();
   });
 
   // ------------------------------------------------------------ Schleife
@@ -717,7 +731,12 @@
     hudT -= dt;
     if (hudT <= 0) { updateHud(); hudT = 0.25; }
     padT -= dt;
-    if (padT <= 0) { if (screen === 'pads') renderPadList(); if (screen === 'lobby') renderLobbyPads(); padT = 0.3; }
+    if (padT <= 0) {
+      if (screen === 'pads') renderPadList();
+      if (screen === 'lobby') renderLobbyPads();
+      if (screen + touchWanted() !== touchSig) updateTouch();   // Controller ein- oder ausgeschaltet
+      padT = 0.3;
+    }
     if (FF.audio.ctx) {
       FF.audio.music(true);
       FF.audio.update(screen === 'play' ? game : null, dt);
