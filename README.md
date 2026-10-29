@@ -28,7 +28,9 @@ node tools/build.js            # -> dist/fadenfreunde.html
 
 **Zu zweit an einem Gerät:** Rot spielt links auf der Tastatur, Blau rechts, oder ihr nehmt Gamepads (USB oder Bluetooth). Wer oben steht, hält fest, und der andere schwingt oder klettert. Wer nicht festhält, wird vom hängenden Partner mitgerissen.
 
-**Online & WLAN (zwei Geräte):** Einer erstellt unter „Online & WLAN“ einen Raum und bekommt einen vierstelligen Code und einen QR-Code. Der andere gibt den Code ein oder scannt ihn. Das klappt im selben WLAN und über das Internet. Die Geräte verbinden sich direkt per WebRTC (PeerJS); der öffentliche PeerJS-Server vermittelt nur den Verbindungsaufbau. Hinter manchen strengen Firmen- oder Mobilfunk-Netzen kann eine direkte Verbindung scheitern.
+**Online & WLAN (zwei Geräte):** Einer erstellt unter „Online & WLAN“ einen Raum und bekommt einen vierstelligen Code und einen QR-Code. Der andere gibt den Code ein oder scannt ihn. Das klappt im selben WLAN und über das Internet. Die Geräte verbinden sich direkt per WebRTC (PeerJS); der öffentliche PeerJS-Server vermittelt nur den Verbindungsaufbau. Scheitert die direkte Verbindung (strenge Router, Mobilfunk), laufen die Daten automatisch über öffentliche MQTT-Vermittler (`src/relay.js`).
+
+**Ohne Internet (WLAN oder Handy-Hotspot):** Unter „Online & WLAN → Ohne Internet“ zeigt der Gastgeber einen QR-Code, der Mitspieler scannt ihn mit der Kamera und zeigt einen Antwort-Code, den der Gastgeber scannt (`src/local.js`). Danach sind die Geräte direkt im lokalen Netz verbunden, ganz ohne Server. Bluetooth zwischen zwei Handys geht im Browser nicht (iOS kennt kein Web-Bluetooth); Bluetooth-Controller funktionieren aber.
 
 **Fernseher:** Die Seite im Browser des Fernsehers, Laptops oder Beamers öffnen und „Fernseher → Dieses Gerät ist der Bildschirm“ wählen. Die Handys scannen den QR-Code und werden zu Controllern mit Joystick, Vibration und Menüsteuerung. Mit Chrome auf Android geht auch „Auf Chromecast übertragen“; AirPlay und Android-„Übertragen“ spiegeln den ganzen Bildschirm.
 
@@ -111,9 +113,11 @@ Wie Unravel hat Verstrickt 12 Welten (Unravel Two hat 7 Kapitel plus Herausforde
 | `src/input.js` | Tastatur, Gamepads, virtuelle Controller, Vibration |
 | `src/touch.js` | Touch-Steuerung im Gamepad-Look (auch der Handy-Controller) |
 | `src/net.js` | Online-Spiel: Räume, Eingaben, Zustandsbilder |
+| `src/relay.js` | Umweg über MQTT-Vermittler, wenn keine direkte Verbindung zustande kommt |
+| `src/local.js` | Spielen ohne Internet: Verbindungsdaten per QR-Code, Kamera-Scanner |
 | `src/audio.js` | Musik, Naturgeräusche, Effekte |
 | `src/main.js` | Menüs, HUD, Netzwerkrollen, Hauptschleife |
-| `vendor/` | Three.js (gebündelt aus `tools/three-entry.js`), PeerJS, qrcode-generator (alle MIT) |
+| `vendor/` | Three.js (gebündelt aus `tools/three-entry.js`), PeerJS, qrcode-generator (alle MIT), jsQR (Apache 2.0, QR-Codes lesen) |
 | `assets/` | Foto-Texturen und HDRIs, aufbereitet mit `tools/make-assets.py` |
 
 Die Physik läuft mit festem Zeitschritt (120 Hz) und ist unabhängig von der Grafik. Der Faden ist ein Seil mit Höchstlänge, das sich an Blockecken einhakt und wieder löst, so dass man über Kanten abseilen und pendeln kann.

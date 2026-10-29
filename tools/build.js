@@ -19,7 +19,7 @@ html = html.replace(/<link rel="manifest"[^>]*>\s*/, '');
 html = html.replace('href="icons/icon-192.png"', () => `href="${dataUri('icons/icon-192.png')}"`);
 html = html.replace('href="icons/icon-180.png"', () => `href="${dataUri('icons/icon-180.png')}"`);
 // Bibliotheken für Online-Spiel und QR-Code direkt mitliefern
-const vendor = ['vendor/peerjs.min.js', 'vendor/qrcode.js'].map((f) => script(read(f))).join('\n');
+const vendor = ['vendor/peerjs.min.js', 'vendor/qrcode.js', 'vendor/jsqr.min.js'].map((f) => script(read(f))).join('\n');
 html = html.replace('<script src="src/core.js"></script>', () => vendor + '\n<script src="src/core.js"></script>');
 // Foto-Texturen und HDRIs als data:-URLs, damit die Einzeldatei ohne Server auskommt
 const mime = { jpg: 'image/jpeg', png: 'image/png', exr: 'application/octet-stream' };

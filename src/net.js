@@ -93,6 +93,27 @@
         });
       });
     }
+    // Ohne Internet: kein Vermittlungsserver, Gäste kommen per QR-Code-Tausch (local.js)
+    openLocal() {
+      this.code = 'WLAN'; this.local = true;
+      this.watch = setInterval(() => {
+        const now = performance.now();
+        for (const c of [...this.clients.values()]) if (now - c.seen > 6000) { try { c.conn.close(); } catch (e) { /* egal */ } this.drop(c); }
+      }, 2000);
+      return Promise.resolve(this.code);
+    }
+    async localOffer() {
+      if (this.link) this.link.close();
+      this.link = new FF.LocalLink();
+      return this.link.offer();
+    }
+    async localAnswer(text) {
+      const link = this.link;
+      if (!link) throw new Error('Kein offenes Angebot.');
+      const conn = await link.finish(text);
+      if (this.link === link) this.link = null;
+      this.accept(conn);
+    }
     bind(peer) {
       peer.on('connection', (c) => this.accept(c));
       peer.on('disconnected', () => this.revive());
@@ -183,6 +204,8 @@
       }
       try { this.peer && this.peer.destroy(); } catch (e) { /* egal */ }
       if (this.relay) this.relay.close();
+      if (this.link) this.link.close();
+      for (const c of this.clients.values()) { try { c.conn.close(); } catch (e) { /* egal */ } }
       this.clients.clear();
     }
   }
@@ -284,11 +307,36 @@
         peer.on('open', () => { attempt(); relayT = setTimeout(startRelay, 9000); });
       });
     }
+    // Ohne Internet: Angebot des Gastgebers (gescannt) beantworten; onAnswer zeigt den Antwort-Code an
+    async joinLocal(offer, role, name, onAnswer) {
+      const link = new FF.LocalLink();
+      this.link = link;
+      const answer = await link.answer(offer);
+      onAnswer(answer);
+      const conn = await link.opened(90000);   // Zeit, damit der Gastgeber die Antwort scannen kann
+      return new Promise((resolve, reject) => {
+        let done = false;
+        const t = setTimeout(() => { if (!done) { done = true; conn.close(); reject(new Error('Der Gastgeber antwortet nicht.')); } }, 10000);
+        this.cancel = () => { if (!done) { done = true; clearTimeout(t); conn.close(); reject(new Error('Abgebrochen.')); } };
+        conn.on('data', (m) => {
+          if (!done) {
+            if (m && m.t === 'welcome') { done = true; clearTimeout(t); this.conn = conn; this.via = 'local'; resolve(m); }
+            else if (m && m.t === 'full') { done = true; clearTimeout(t); conn.close(); reject(new Error('Der Raum ist schon voll.')); }
+            return;
+          }
+          if (m && m.t === 'pong') { this.rtt = performance.now() - m.at; return; }
+          this.h.onMessage(m);
+        });
+        conn.on('close', () => { if (done && conn === this.conn) this.h.onClose(); });
+        conn.send({ t: 'hello', role, name });
+      });
+    }
     send(m) { try { if (this.conn && this.conn.open) this.conn.send(m); } catch (e) { /* egal */ } }
     ping() { this.send({ t: 'ping', at: performance.now() }); }
     close() {
       if (this.cancel) this.cancel();
       try { if (this.conn) this.conn.close(); } catch (e) { /* egal */ }
+      try { if (this.link) this.link.close(); } catch (e) { /* egal */ }
       try { this.peer && this.peer.destroy(); } catch (e) { /* egal */ }
     }
   }

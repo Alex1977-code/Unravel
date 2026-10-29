@@ -108,6 +108,28 @@
         <button type="button" class="btn" data-act="join-pad"><b>Nur als Controller</b><small>Dieses Handy steuert, gespielt wird auf dem anderen Bildschirm</small></button>
       </div>
       <p id="online-msg" class="note" role="status"></p>
+      <h3 class="sub">Kein Internet?</h3>
+      <div class="menu">
+        <button type="button" class="btn" data-act="local"><b>Ohne Internet</b><small>Im selben WLAN oder Handy-Hotspot, Verbindung per QR-Code</small></button>
+      </div>
+      <div class="menu row"><button type="button" class="btn" data-act="back">Zurück</button></div>
+    </div>
+  </section>
+
+  <section id="scr-local" class="screen" hidden>
+    <div class="panel">
+      <h2>Ohne Internet</h2>
+      <p class="lede">Beide Geräte im selben WLAN – oder ein Handy macht einen Hotspot auf und das andere verbindet sich damit. Statt über einen Server tauschen die Geräte zwei QR-Codes aus, dafür braucht es die Kamera.</p>
+      <div class="menu">
+        <button type="button" class="btn primary" data-act="local-host"><b>Raum erstellen</b><small>Du spielst Rot und zeigst den ersten Code</small></button>
+        <button type="button" class="btn primary blue" data-act="local-join"><b>Mitspielen</b><small>Code des Gastgebers scannen, du spielst Blau</small></button>
+        <button type="button" class="btn" data-act="local-pad"><b>Nur als Controller</b><small>Code scannen, gespielt wird auf dem anderen Bildschirm</small></button>
+      </div>
+      <div id="local-step" class="local-step" hidden>
+        <h3 class="sub">Deine Antwort</h3>
+        <div id="local-qr" class="qr" aria-label="Antwort-Code für den Gastgeber"></div>
+      </div>
+      <p id="local-msg" class="note" role="status"></p>
       <div class="menu row"><button type="button" class="btn" data-act="back">Zurück</button></div>
     </div>
   </section>
@@ -117,11 +139,12 @@
       <h2 id="lobby-title">Raum offen</h2>
       <div class="lobby-grid">
         <div class="lobby-code">
-          <span class="lbl">Code</span>
+          <span class="lbl online-only">Code</span>
           <strong id="lobby-code">····</strong>
           <div id="lobby-qr" class="qr" aria-label="QR-Code zum Beitreten"></div>
-          <button type="button" class="btn small" data-act="copy-link" id="btn-copy">Link kopieren</button>
-          <code id="lobby-link" class="link"></code>
+          <button type="button" class="btn small primary blue local-only" data-act="lobby-scan"><b>Antwort scannen</b></button>
+          <button type="button" class="btn small online-only" data-act="copy-link" id="btn-copy">Link kopieren</button>
+          <code id="lobby-link" class="link online-only"></code>
         </div>
         <div class="lobby-side">
           <p id="lobby-hint" class="lede"></p>
@@ -267,6 +290,13 @@
   </section>
 </main>
 
+<div id="scan" class="scan" hidden>
+  <video id="scan-video" playsinline muted></video>
+  <div class="scan-frame" aria-hidden="true"></div>
+  <p id="scan-msg"></p>
+  <button type="button" class="btn" id="scan-cancel">Abbrechen</button>
+</div>
+
 <script src="vendor/three.bundle.min.js"></script>
 <script src="src/core.js"></script>
 <script src="src/physics.js"></script>
@@ -276,6 +306,7 @@
 <script src="src/input.js"></script>
 <script src="src/touch.js"></script>
 <script src="src/relay.js"></script>
+<script src="src/local.js"></script>
 <script src="src/net.js"></script>
 <script src="src/weather.js"></script>
 <script src="src/render.js"></script>

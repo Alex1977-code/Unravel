@@ -501,3 +501,15 @@ body.tv .hud-chip { font-size: 18px; }
 /* Hinweis, wenn der Browser keine 3D-Grafik kann */
 .nogl { min-height: 100%; display: grid; place-content: center; gap: 12px; padding: 24px; text-align: center; max-width: 560px; margin: 0 auto; }
 .nogl p { color: var(--linen-dim); font-size: 17px; line-height: 1.55; }
+
+/* Ohne Internet: QR-Codes tragen mehr Daten, darum größer; Kamera-Fenster zum Scannen */
+body:not(.local-room) .local-only { display: none; }
+body.local-room .online-only { display: none; }
+body.local-room .lobby-code .qr, .local-step .qr { width: min(260px, 72vw, 64vh); }
+.local-step { display: grid; justify-items: center; gap: 8px; margin: 6px 0 10px; }
+.scan { position: fixed; inset: 0; z-index: 60; background: #000; display: grid; place-items: center; }
+.scan[hidden] { display: none; }
+.scan video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.scan-frame { position: relative; width: min(64vw, 64vh); aspect-ratio: 1; border-radius: 18px; box-shadow: 0 0 0 200vmax rgba(0, 0, 0, 0.45); outline: 3px solid rgba(241, 232, 214, 0.9); }
+.scan p { position: absolute; top: max(18px, env(safe-area-inset-top)); left: 16px; right: 16px; margin: 0; text-align: center; color: var(--linen); font: 700 16px var(--body); text-shadow: 0 1px 4px #000; }
+.scan .btn { position: absolute; bottom: max(22px, env(safe-area-inset-bottom)); }

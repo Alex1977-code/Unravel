@@ -41,7 +41,7 @@
   const touchPad = new FF.TouchPad($('#touch'));
 
   // ------------------------------------------------------------ Bildschirme
-  const screens = ['title', 'levels', 'help', 'pause', 'win', 'online', 'lobby', 'tv', 'pads', 'guest'];
+  const screens = ['title', 'levels', 'help', 'pause', 'win', 'online', 'local', 'lobby', 'tv', 'pads', 'guest'];
   let navSel = null, wake = null;
   function show(name) {
     screen = name;
@@ -225,7 +225,7 @@
   }
 
   // ------------------------------------------------------------ Online: Gastgeber
-  async function openRoom(tv, code) {
+  async function openRoom(tv, code, local) {
     closeNet();
     const host = new FF.NetHost({
       assignSlot: (info) => {
@@ -234,6 +234,7 @@
         return null;
       },
       onJoin: (info) => {
+        if (net && net.local) net.offer = null;   // für einen weiteren Mitspieler ein neues Angebot
         const kind = info.role === 'pad' ? 'Handy-Controller' : 'eigener Bildschirm';
         toast(`${NAMES[info.slot]} ist dabei (${kind})`, info.slot);
         if (screen === 'lobby') renderLobby();
@@ -253,13 +254,15 @@
       onNav: (info, k) => remoteNav(k),
       onError: (t) => toast(t),
     });
-    net = { role: 'host', host, tv, slots: tv ? [null, null] : [{ kind: 'local' }, null] };
+    net = { role: 'host', host, tv, local: !!local, slots: tv ? [null, null] : [{ kind: 'local' }, null] };
     $('#lobby-code').textContent = '····';
-    $('#lobby-title').textContent = tv ? 'Fernseher bereit' : 'Raum offen';
+    $('#lobby-title').textContent = local ? 'Raum ohne Internet' : tv ? 'Fernseher bereit' : 'Raum offen';
     document.body.classList.toggle('tv', !!tv);
+    document.body.classList.toggle('local-room', !!local);
     show('lobby');
     try {
-      const c = await host.open(code);
+      if (local) await FF.cameraPermission();   // vorab, damit das Angebot die echte WLAN-Adresse enthält
+      const c = local ? await host.openLocal() : await host.open(code);
       if (!net || net.host !== host) { host.close(); return; }
       renderLobby();
       FF.audio.onPlay = (name, v) => { if (net && net.role === 'host') outSfx.push(name); };
@@ -277,7 +280,8 @@
   async function renderLobby() {
     if (!net || net.role !== 'host') return;
     const code = net.host.code;
-    if (code) {
+    if (net.local) renderLocalLobby();
+    else if (code) {
       $('#lobby-code').textContent = code;
       const link = joinLink(code);
       $('#lobby-link').textContent = link;
@@ -293,7 +297,9 @@
         } catch (e) { qr.textContent = ''; }
       }
     }
-    $('#lobby-hint').textContent = net.tv
+    $('#lobby-hint').textContent = net.local
+      ? 'Ohne Internet: Beide Geräte im selben WLAN oder im Hotspot eines Handys. 1. Der Mitspieler scannt diesen QR-Code – mit der Kamera-App oder in Verstrickt unter Online & WLAN → Ohne Internet → Mitspielen. 2. Dann hier auf „Antwort scannen“ tippen und den Code auf seinem Gerät scannen.'
+      : net.tv
       ? 'Scannt den QR-Code mit euren Handys oder öffnet die Spieladresse und gebt den Code ein. Die Handys werden zu Controllern. Bluetooth-Gamepads an diesem Gerät gehen auch.'
       : 'Der andere Spieler scannt den QR-Code oder gibt unter „Online & WLAN“ den Code ein. Funktioniert im selben WLAN und über das Internet.';
     const ul = $('#lobby-slots');
@@ -312,6 +318,45 @@
     updateHud(true);
   }
 
+  // Lobby ohne Internet: Angebot als QR-Code (mit Link, damit auch die Kamera-App das Spiel öffnet)
+  async function renderLocalLobby() {
+    $('#lobby-code').textContent = 'WLAN';
+    const qr = $('#lobby-qr');
+    const free = net.slots.some((x) => !x);
+    if (!free) { qr.dataset.code = ''; qr.innerHTML = '<p class="note">Der Raum ist voll.</p>'; return; }
+    if (!net.offer) {
+      if (net.offerP) return;
+      qr.innerHTML = '<p class="note">Code wird erstellt …</p>'; qr.dataset.code = '';
+      const me = net;
+      net.offerP = net.host.localOffer().then((o) => { if (net === me) { net.offer = o; net.offerP = null; renderLocalLobby(); } })
+        .catch((e) => { if (net === me) { net.offerP = null; qr.innerHTML = '<p class="note">' + e.message + '</p>'; } });
+      return;
+    }
+    if (qr.dataset.code === net.offer) return;
+    qr.dataset.code = net.offer;
+    await drawQR(qr, location.origin + location.pathname + '#L=' + net.offer);
+  }
+  async function drawQR(el, text) {
+    try {
+      if (!globalThis.qrcode) await FF.loadScript('vendor/qrcode.js');
+      const q = globalThis.qrcode(0, 'L');
+      q.addData(text);
+      q.make();
+      el.innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+    } catch (e) { el.textContent = ''; }
+  }
+  async function scanAnswer() {
+    if (!net || !net.local) return;
+    try {
+      const text = await FF.scanQR('Scanne den Code auf dem Gerät des Mitspielers.');
+      toast('Verbinde …');
+      await net.host.localAnswer(text);
+    } catch (e) {
+      toast(e.message);
+      if (net && net.local && !/abgebrochen|Gastgebers/i.test(e.message)) { net.offer = null; renderLobby(); }
+    }
+  }
+
   function closeNet() {
     if (!net) return;
     if (net.role === 'host') { net.host.broadcast({ t: 'bye' }); net.host.close(); }
@@ -319,7 +364,7 @@
     for (const k of Object.keys(input.virtual)) if (k.startsWith('r:')) input.setVirtual(k, null);
     FF.audio.onPlay = null;
     net = null;
-    document.body.classList.remove('tv');
+    document.body.classList.remove('tv', 'local-room');
     stopWake();
   }
 
@@ -364,9 +409,21 @@
       const w = await client.join(code, role, '');
       if (pendingJoin !== client) { client.close(); return; }
       pendingJoin = null;
+      joined(client, w, role, code);
+    } catch (e) {
+      if (pendingJoin !== client) return;
+      pendingJoin = null;
+      if (role === 'pad') { hidePad(); show('online'); }
+      $('#online-msg').textContent = e.message;
+      toast(e.message);
+    }
+  }
+
+  function joined(client, w, role, code) {
       net = { role: role === 'pad' ? 'pad' : 'guest', client, slot: w.slot, code, state: FF.makePadState() };
       $('#online-msg').textContent = '';
       if (role === 'pad') {
+        if (screen !== 'pad') showPad();
         $('#pad-who').textContent = `Du bist ${NAMES[w.slot]}`;
         $('#pad-who').style.background = FF.COLORS[w.slot];
         $('#pad-status').textContent = `Raum ${code}`;
@@ -376,12 +433,45 @@
         $('#guest-text').textContent = 'Verbunden. Warte, bis Rot ein Level startet.';
         show('guest');
       }
+  }
+
+  // Ohne Internet beitreten: Code des Gastgebers scannen (oder aus dem Link), Antwort-Code zeigen, warten
+  let localOffer = '', lastAnswer = '';
+  async function joinLocal(role) {
+    closeNet();
+    if (pendingJoin) pendingJoin.close();
+    FF.audio.init();
+    const msg = $('#local-msg'), step = $('#local-step');
+    step.hidden = true;
+    let offer = localOffer;
+    localOffer = '';
+    try {
+      if (!offer) offer = await FF.scanQR('Scanne den Code auf dem Gerät des Gastgebers.');
+    } catch (e) { msg.textContent = e.message; return; }
+    msg.textContent = 'Erstelle die Antwort …';
+    const client = new FF.NetClient({
+      onMessage: (m) => (role === 'pad' ? padMessage(m) : guestMessage(m)),
+      onClose: () => lostConnection(),
+      onError: (t) => toast(t),
+    });
+    pendingJoin = client;
+    try {
+      const w = await client.joinLocal(offer, role, '', (answer) => {
+        if (pendingJoin !== client) return;
+        lastAnswer = answer;
+        step.hidden = false;
+        drawQR($('#local-qr'), answer);
+        msg.textContent = 'Jetzt auf dem Gerät des Gastgebers „Antwort scannen“ tippen und diesen Code scannen.';
+      });
+      if (pendingJoin !== client) { client.close(); return; }
+      pendingJoin = null;
+      step.hidden = true; msg.textContent = '';
+      joined(client, w, role, 'WLAN');
     } catch (e) {
       if (pendingJoin !== client) return;
       pendingJoin = null;
-      if (role === 'pad') { hidePad(); show('online'); }
-      $('#online-msg').textContent = e.message;
-      toast(e.message);
+      step.hidden = true;
+      msg.textContent = e.message;
     }
   }
 
@@ -575,9 +665,15 @@
       case 'back':
         if (screen === 'help') show(returnTo);
         else if (screen === 'levels' && net && net.role === 'host') show('lobby');
+        else if (screen === 'local') { if (pendingJoin) { pendingJoin.close(); pendingJoin = null; } show('online'); }
         else show('title');
         break;
       case 'host': openRoom(false); break;
+      case 'local': $('#local-msg').textContent = localOffer ? 'Code erkannt. Tippe auf „Mitspielen“ oder „Nur als Controller“.' : ''; $('#local-step').hidden = true; show('local'); break;
+      case 'local-host': openRoom(false, undefined, true); break;
+      case 'local-join': joinLocal('player'); break;
+      case 'local-pad': joinLocal('pad'); break;
+      case 'lobby-scan': scanAnswer(); break;
       case 'tv-host': openRoom(true); break;
       case 'cast': castToTv(); break;
       case 'join-player': joinRoom($('#join-code').value, 'player'); break;
@@ -774,7 +870,11 @@
 
   // Einstieg über Link: ?join=CODE (Mitspielen/Controller) oder ?tv=1&code=CODE (Fernseher)
   const jc = FF.cleanCode(params.get('join'));
-  if (jc) {
+  if (location.hash.startsWith('#L=')) {
+    localOffer = decodeURIComponent(location.hash.slice(3));
+    history.replaceState(null, '', location.pathname + location.search);
+    act('local');
+  } else if (jc) {
     $('#join-code').value = jc;
     show('online');
     if (params.get('as') === 'pad') { $('#online-msg').textContent = 'Tippe auf „Nur als Controller“, um dieses Handy als Controller zu verbinden.'; }
@@ -785,6 +885,7 @@
   // Für Tests im Browser
   FF.debug = {
     get game() { return game; }, get net() { return net; }, get screen() { return screen; },
-    startLevel, setMode: (m) => (mode = m), input, renderer: R, openRoom, joinRoom, act,
+    startLevel, setMode: (m) => (mode = m), input, renderer: R, openRoom, joinRoom, joinLocal, act,
+    setLocalOffer: (o) => (localOffer = o), get localAnswer() { return lastAnswer; },
   };
 })();

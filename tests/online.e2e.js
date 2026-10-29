@@ -155,6 +155,41 @@ function miniBroker(port) {
     assert.strictEqual(await h5.evaluate(() => FF.debug.net.host.count), 1, 'Gast nur einmal im Raum');
     console.log('  ✓ Direkter Weg scheitert: automatisch über den Vermittler');
 
+    // Ohne Internet: Angebot und Antwort werden per QR-Code getauscht (hier direkt übergeben), dann Netz aus
+    // Kein Server erreichbar (Vermittler und Umweg zeigen ins Leere); die Offline-Simulation des Browsers schaltet
+    // auch lokales WebRTC ab und taugt darum nicht
+    const nq = 'peerhost=127.0.0.1&peerport=1&peerpath=/&render=off&relay=ws://127.0.0.1:1';
+    const lh = await open(`http://127.0.0.1:8790/index.html?${nq}`);
+    const lg = await open(`http://127.0.0.1:8790/index.html?${nq}`);
+    await lh.evaluate(() => FF.debug.act('local-host'));
+    await lh.waitForFunction(() => FF.debug.net && FF.debug.net.offer && document.querySelector('#lobby-qr svg'), null, { timeout: 15000 });
+    const offerLink = await lh.evaluate(() => location.origin + location.pathname + '#L=' + FF.debug.net.offer);
+    // Der QR-Code des Angebots muss mit jsQR lesbar sein (so liest das iPhone ihn)
+    const read = await lh.evaluate(async () => {
+      await FF.loadScript('vendor/jsqr.min.js');
+      const svg = document.querySelector('#lobby-qr svg');
+      const img = new Image();
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(svg));
+      await img.decode();
+      const cv = document.createElement('canvas'); cv.width = cv.height = 400;
+      const ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 400, 400); ctx.drawImage(img, 20, 20, 360, 360);
+      const r = jsQR(ctx.getImageData(0, 0, 400, 400).data, 400, 400);
+      return r && r.data;
+    });
+    assert.strictEqual(read, offerLink, 'QR-Code des Angebots ist lesbar');
+    await lg.evaluate((o) => { FF.debug.setLocalOffer(decodeURIComponent(o.split('#L=')[1])); FF.debug.joinLocal('player'); }, offerLink);
+    await lg.waitForFunction(() => FF.debug.localAnswer, null, { timeout: 15000 });
+    const ans = await lg.evaluate(() => FF.debug.localAnswer);
+    await lh.evaluate((a) => FF.debug.net.host.localAnswer(a), ans);
+    await lg.waitForFunction(() => FF.debug.net && FF.debug.net.slot === 1, null, { timeout: 20000 });
+    await lh.evaluate(() => { FF.debug.setMode('coop'); FF.debug.startLevel(0); });
+    await lg.waitForFunction(() => FF.debug.screen === 'play', null, { timeout: 10000 });
+    const lx0 = await lh.evaluate(() => FF.debug.game.players[1].x);
+    await lg.keyboard.down('KeyD'); await lg.waitForTimeout(800); await lg.keyboard.up('KeyD');
+    const lx1 = await lh.evaluate(() => FF.debug.game.players[1].x);
+    assert(lx1 > lx0 + 50, 'Gast bewegt Blau ohne Internet');
+    console.log(`  ✓ Ohne Internet: QR-Codes tauschen, dann im WLAN spielen (Angebot ${offerLink.split('#L=')[1].length} Zeichen, Antwort ${ans.length})`);
+
     // Ein Handy, zwei Bluetooth-Controller (z. B. auf den Fernseher gespiegelt): keine Touch-Tasten im Bild
     const ph = await open(`http://127.0.0.1:8790/index.html?${q}`, { viewport: { width: 800, height: 400 }, hasTouch: true, isMobile: true });
     await ph.evaluate(() => {
