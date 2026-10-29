@@ -31,7 +31,15 @@
     const q = new URLSearchParams(location.search);
     const o = {
       debug: 0,
-      config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: 'stun:global.stun.twilio.com:3478' }] },
+      // STUN findet den direkten Weg; die TURN-Server von PeerJS leiten weiter, wenn es keinen gibt
+      // (Mobilfunk, verschiedene Netze, strenge Router). Ohne sie bleibt die Verbindung oft bei „Verbinde“ hängen.
+      config: {
+        iceServers: [
+          { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+          { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' },
+        ],
+        sdpSemantics: 'unified-plan',
+      },
     };
     if (q.get('peerhost')) {
       o.host = q.get('peerhost');
@@ -69,19 +77,66 @@
           this.watch = setInterval(() => {
             const now = performance.now();
             for (const c of [...this.clients.values()]) if (now - c.seen > 6000) { try { c.conn.close(); } catch (e) { /* egal */ } this.drop(c); }
+            this.revive();
           }, 2000);
           resolve(code);
         });
-        peer.on('connection', (c) => this.accept(c));
-        peer.on('disconnected', () => { try { if (!peer.destroyed) peer.reconnect(); } catch (e) { /* egal */ } });
+        this.bind(peer);
         peer.on('error', (e) => {
           if (!opened) {
             peer.destroy();
             if (e.type === 'unavailable-id' && tries < 4) this.open(null, tries + 1).then(resolve, reject);
             else reject(new Error(errText(e)));
-          } else if (e.type !== 'peer-unavailable') this.h.onError && this.h.onError(errText(e));
+          }
         });
       });
+    }
+    bind(peer) {
+      peer.on('connection', (c) => this.accept(c));
+      peer.on('disconnected', () => this.revive());
+      peer.on('error', (e) => {
+        if (peer !== this.peer) return;
+        if (e.type === 'unavailable-id') this.reopen();
+        else if (['network', 'socket-error', 'socket-closed', 'server-error'].includes(e.type)) setTimeout(() => this.revive(), 2000);
+      });
+      if (!this.onWake) {
+        // iOS legt die Seite beim App-Wechsel schlafen (z. B. um den Code zu verschicken); danach meldet sich der Raum neu an
+        this.onWake = () => { if (!document.hidden) this.revive(true); };
+        document.addEventListener('visibilitychange', this.onWake);
+        globalThis.addEventListener('online', this.onWake);
+        globalThis.addEventListener('pageshow', this.onWake);
+      }
+    }
+    // Verbindung zum Vermittlungsserver wiederherstellen, damit neue Mitspieler den Raum finden
+    revive(force) {
+      const peer = this.peer;
+      if (!peer || this.closed) return;
+      if (peer.destroyed) return this.reopen();
+      const sock = peer.socket && peer.socket._socket;
+      const dead = peer.disconnected || (force && sock && sock.readyState !== 1);
+      if (!dead) return;
+      const now = performance.now();
+      if (now - (this.revT || 0) < 1500) return;
+      this.revT = now;
+      try { if (!peer.disconnected) peer.disconnect(); peer.reconnect(); } catch (e) { this.reopen(); }
+    }
+    // Neu anmelden unter demselben Code; bestehende Verbindungen zu Mitspielern bleiben
+    reopen() {
+      if (this.closed || this.reopening) return;
+      this.reopening = true;
+      const old = this.peer;
+      setTimeout(() => {
+        this.reopening = false;
+        if (this.closed) return;
+        const peer = new globalThis.Peer(PREFIX + this.code, peerOptions());
+        peer.on('open', () => {
+          if (this.closed) return peer.destroy();
+          if (old && old !== peer) { try { old.disconnect(); } catch (e) { /* egal */ } }
+          this.peer = peer;
+        });
+        peer.on('error', (e) => { if (e.type === 'unavailable-id') { peer.destroy(); this.reopen(); } });
+        this.bind(peer);
+      }, 3000);
     }
     accept(conn) {
       const info = { conn, id: conn.peer, role: null, slot: null, name: '', seen: performance.now() };
@@ -115,42 +170,90 @@
     send(info, msg) { try { if (info.conn.open) info.conn.send(msg); } catch (e) { /* Verbindung weg */ } }
     broadcast(msg, role) { for (const c of this.clients.values()) if (!role || c.role === role) this.send(c, msg); }
     get count() { return this.clients.size; }
-    close() { clearInterval(this.watch); try { this.peer && this.peer.destroy(); } catch (e) { /* egal */ } this.clients.clear(); }
+    close() {
+      this.closed = true;
+      clearInterval(this.watch);
+      if (this.onWake) {
+        document.removeEventListener('visibilitychange', this.onWake);
+        globalThis.removeEventListener('online', this.onWake);
+        globalThis.removeEventListener('pageshow', this.onWake);
+      }
+      try { this.peer && this.peer.destroy(); } catch (e) { /* egal */ }
+      this.clients.clear();
+    }
   }
 
   // -------------------------------------------------------------- Gast / Controller
   class Client {
-    constructor(h) { this.h = h; } // { onMessage(m), onClose(), onError(text) }
+    constructor(h) { this.h = h; } // { onMessage(m), onClose(), onError(text), onStatus(text) }
     async join(code, role, name) {
+      const status = (t) => this.h.onStatus && this.h.onStatus(t);
+      status('Lade …');
       await ensurePeer();
       code = FF.cleanCode(code);
       return new Promise((resolve, reject) => {
+        status('Verbinde mit dem Vermittlungsserver …');
         const peer = new globalThis.Peer(undefined, peerOptions());
         this.peer = peer;
-        let done = false;
-        const fail = (t) => { if (done) return; done = true; try { peer.destroy(); } catch (e) { /* egal */ } reject(new Error(t)); };
-        const timer = setTimeout(() => fail('Der Raum antwortet nicht. Stimmt der Code?'), 15000);
-        peer.on('error', (e) => { if (!done) fail(errText(e)); else this.h.onError && this.h.onError(errText(e)); });
-        peer.on('open', () => {
+        let done = false, tries = 0, reached = false, retry = 0;
+        const fail = (t) => {
+          if (done) return;
+          done = true; clearTimeout(timer); clearTimeout(retry);
+          try { peer.destroy(); } catch (e) { /* egal */ }
+          reject(new Error(t));
+        };
+        this.cancel = () => fail('Abgebrochen.');
+        const timer = setTimeout(() => fail(reached
+          ? 'Raum gefunden, aber die Geräte kommen nicht zueinander. Versucht es im selben WLAN oder mit Mobilfunk statt WLAN.'
+          : 'Der Raum antwortet nicht. Stimmt der Code und ist der Raum beim Gastgeber noch offen?'), 40000);
+        peer.on('error', (e) => {
+          if (done) { this.h.onError && this.h.onError(errText(e)); return; }
+          // Raum (noch) nicht da, z. B. weil der Gastgeber gerade die App gewechselt hat: nochmal versuchen
+          if (e.type === 'peer-unavailable' && tries < 4) { clearTimeout(retry); retry = setTimeout(attempt, 2500); status('Suche den Raum ' + code + ' …'); return; }
+          fail(errText(e));
+        });
+        peer.on('disconnected', () => { if (!done) { try { peer.reconnect(); } catch (e) { /* egal */ } } });
+        const attempt = () => {
+          if (done) return;
+          tries++;
+          if (this.conn) { try { this.conn.close(); } catch (e) { /* egal */ } }
           const conn = peer.connect(PREFIX + code, { reliable: true, serialization: 'json' });
           this.conn = conn;
-          conn.on('open', () => conn.send({ t: 'hello', role, name }));
+          status(tries > 1 ? `Verbinde mit Raum ${code} (Versuch ${tries}) …` : `Verbinde mit Raum ${code} …`);
+          // Nach 12 Sekunden ohne Kanal ein neuer Anlauf (der Weg über den Weiterleitungsserver braucht manchmal länger)
+          clearTimeout(retry);
+          retry = setTimeout(() => { if (!done && !conn.open && tries < 3) attempt(); }, 12000);
+          conn.on('open', () => {
+            if (conn !== this.conn) return;
+            reached = true;
+            status('Verbunden, warte auf den Gastgeber …');
+            conn.send({ t: 'hello', role, name });
+          });
           conn.on('data', (m) => {
+            if (conn !== this.conn) return;
             if (!done) {
-              if (m && m.t === 'welcome') { done = true; clearTimeout(timer); resolve(m); }
+              if (m && m.t === 'welcome') { done = true; clearTimeout(timer); clearTimeout(retry); resolve(m); }
               else if (m && m.t === 'full') fail('Der Raum ist schon voll.');
               return;
             }
             if (m && m.t === 'pong') { this.rtt = performance.now() - m.at; return; }
             this.h.onMessage(m);
           });
-          conn.on('close', () => { if (done) this.h.onClose(); else fail('Verbindung abgelehnt.'); });
-        });
+          conn.on('close', () => { if (conn !== this.conn) return; if (done) this.h.onClose(); else if (reached) fail('Verbindung abgelehnt.'); });
+          // ICE-Zustand verrät, ob der Raum gefunden wurde und nur der Weg fehlt
+          setTimeout(() => {
+            const pc = conn.peerConnection;
+            if (pc) pc.addEventListener('iceconnectionstatechange', () => {
+              if (!done && conn === this.conn && (pc.iceConnectionState === 'checking')) { reached = true; status('Raum gefunden, baue die Verbindung auf …'); }
+            });
+          }, 0);
+        };
+        peer.on('open', attempt);
       });
     }
     send(m) { try { if (this.conn && this.conn.open) this.conn.send(m); } catch (e) { /* egal */ } }
     ping() { this.send({ t: 'ping', at: performance.now() }); }
-    close() { try { this.peer && this.peer.destroy(); } catch (e) { /* egal */ } }
+    close() { if (this.cancel) this.cancel(); try { this.peer && this.peer.destroy(); } catch (e) { /* egal */ } }
   }
 
   // -------------------------------------------------------------- Zustandsbilder

@@ -59,6 +59,26 @@ const web = http.createServer((req, res) => {
     await pad.tap('#pad-nav [data-nav=ok]'); await tv.waitForTimeout(500);
     assert.strictEqual(await tv.evaluate(() => FF.debug.screen), 'play', 'Controller startet das Spiel über das Menü');
     console.log('  ✓ Fernseher: Handy bedient Menü und startet das Level');
+
+    // Gastgeber verliert kurz die Vermittlung (App-Wechsel auf dem Handy) – danach findet ein Gast den Raum trotzdem
+    const h2 = await open(`http://127.0.0.1:8790/index.html?${q}`);
+    await h2.evaluate(() => FF.debug.openRoom(false, 'RC22'));
+    await h2.waitForFunction(() => FF.debug.net && FF.debug.net.host.code === 'RC22', null, { timeout: 15000 });
+    await h2.evaluate(() => FF.debug.net.host.peer.disconnect());
+    await h2.waitForFunction(() => !FF.debug.net.host.peer.disconnected, null, { timeout: 10000 });
+    const g2 = await open(`http://127.0.0.1:8790/index.html?${q}`);
+    await g2.evaluate(() => FF.debug.joinRoom('RC22', 'player'));
+    await g2.waitForFunction(() => FF.debug.net && FF.debug.net.slot === 1, null, { timeout: 20000 });
+    console.log('  ✓ Raum meldet sich nach Verbindungsabbruch neu an');
+
+    // Gast gibt den Code ein, bevor der Raum offen ist – er versucht es weiter, bis der Raum da ist
+    const g3 = await open(`http://127.0.0.1:8790/index.html?${q}`);
+    await g3.evaluate(() => { FF.debug.joinRoom('LT33', 'player'); });
+    await g3.waitForTimeout(1500);
+    const h3 = await open(`http://127.0.0.1:8790/index.html?${q}`);
+    await h3.evaluate(() => FF.debug.openRoom(false, 'LT33'));
+    await g3.waitForFunction(() => FF.debug.net && FF.debug.net.slot === 1, null, { timeout: 20000 });
+    console.log('  ✓ Gast wartet auf einen Raum, der erst gleich öffnet');
   } finally {
     await b.close(); web.close(); ps.close();
   }

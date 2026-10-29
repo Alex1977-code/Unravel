@@ -42,6 +42,7 @@
 
   // ------------------------------------------------------------ Bildschirme
   const screens = ['title', 'levels', 'help', 'pause', 'win', 'online', 'lobby', 'tv', 'pads', 'guest'];
+  let navSel = null;
   function show(name) {
     screen = name;
     for (const s of screens) $('#scr-' + s).hidden = s !== name;
@@ -53,6 +54,7 @@
     input.captureGame = name === 'play';
     if (name !== 'play') {
       const first = document.querySelector('#scr-' + name + ' [data-default]') || document.querySelector('#scr-' + name + ' .btn:not([hidden])');
+      navSel = first;
       if (first && !isTouch) setTimeout(() => first.focus({ preventScroll: true }), 30);
     } else if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     if (name === 'pads') renderPadList(true);
@@ -330,20 +332,26 @@
   }
 
   // ------------------------------------------------------------ Online: Gast und Controller
+  let pendingJoin = null;
   async function joinRoom(code, role) {
     code = FF.cleanCode(code);
     if (code.length !== 4) { $('#online-msg').textContent = 'Der Code hat vier Zeichen.'; return; }
     closeNet();
+    if (pendingJoin) pendingJoin.close();   // ein noch laufender Versuch (doppelt getippt) wird ersetzt
     FF.audio.init();
     $('#online-msg').textContent = 'Verbinde …';
     const client = new FF.NetClient({
       onMessage: (m) => (role === 'pad' ? padMessage(m) : guestMessage(m)),
       onClose: () => lostConnection(),
       onError: (t) => toast(t),
+      onStatus: (t) => { if (!net) { $('#online-msg').textContent = t; if (role === 'pad') $('#pad-status').textContent = t; } },
     });
-    if (role === 'pad') { showPad(); $('#pad-status').textContent = 'verbinde …'; }
+    if (role === 'pad') { showPad(); $('#pad-status').textContent = 'Verbinde …'; }
+    pendingJoin = client;
     try {
       const w = await client.join(code, role, '');
+      if (pendingJoin !== client) { client.close(); return; }
+      pendingJoin = null;
       net = { role: role === 'pad' ? 'pad' : 'guest', client, slot: w.slot, code, state: FF.makePadState() };
       $('#online-msg').textContent = '';
       if (role === 'pad') {
@@ -357,6 +365,8 @@
         show('guest');
       }
     } catch (e) {
+      if (pendingJoin !== client) return;
+      pendingJoin = null;
       if (role === 'pad') { hidePad(); show('online'); }
       $('#online-msg').textContent = e.message;
       toast(e.message);
@@ -598,11 +608,14 @@
   function menuNav(gl) {
     const btns = $$('#scr-' + screen + ' .btn').filter((b) => !b.hidden && b.offsetParent);
     if (!btns.length) return;
+    // Auswahl merken: hat die Seite keinen Fokus (Fernseher, Bedienung vom Handy), zählt die gemerkte Taste
     let i = btns.indexOf(document.activeElement);
-    if (gl.down) { i = (i + 1) % btns.length; btns[i].focus(); }
-    if (gl.up) { i = (i - 1 + btns.length) % btns.length; btns[i].focus(); }
+    if (i < 0) i = btns.indexOf(navSel);
+    const pick = (k) => { navSel = btns[k]; navSel.focus({ preventScroll: false }); };
+    if (gl.down) pick((i + 1) % btns.length);
+    if (gl.up) pick((i - 1 + btns.length) % btns.length);
     if (gl.ok) {
-      if (i < 0) (btns.find((b) => b.hasAttribute('data-default')) || btns[0]).focus();
+      if (i < 0) pick(Math.max(0, btns.findIndex((b) => b.hasAttribute('data-default'))));
       else btns[i].click();
     }
     if (gl.back) {
