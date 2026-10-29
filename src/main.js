@@ -636,6 +636,27 @@
     const v = FF.viewSize(sizeEl), key = v.w + 'x' + v.h + '@' + devicePixelRatio;
     if (force || key !== lastSize) { lastSize = key; R.resize(); }
   }
+  // Kein Seitenzoom: iOS-Safari zoomt sonst bei schnellem Doppeltippen (z. B. mehrmals Springen) und bei zwei
+  // Fingern gleichzeitig (Stick + Taste) – dann rutschen Tasten und Hinweise aus dem Bild.
+  for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
+  document.addEventListener('touchmove', (e) => { if (e.touches.length > 1 || (e.scale && e.scale !== 1)) e.preventDefault(); }, { passive: false });
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    // Im Spiel jedes schnelle zweite Tippen abfangen; im Menü nur außerhalb von Knöpfen und Eingabefeldern
+    const ui = e.target.closest && e.target.closest('button, input, a, select, textarea');
+    if (now - lastTouchEnd < 350 && (document.body.classList.contains('playing') || !ui)) e.preventDefault();
+    lastTouchEnd = now;
+  }, { passive: false });
+  // Falls doch vergrößert wurde (z. B. vor dem Laden): sofort auf 100 % zurück
+  const vpMeta = document.querySelector('meta[name="viewport"]');
+  function resetZoom() {
+    if (!window.visualViewport || visualViewport.scale <= 1.01 || !vpMeta) return;
+    const c = vpMeta.getAttribute('content');
+    vpMeta.setAttribute('content', c.replace(/maximum-scale=[\d.]+/, 'maximum-scale=1.0001'));
+    requestAnimationFrame(() => vpMeta.setAttribute('content', c));
+  }
+  if (window.visualViewport) visualViewport.addEventListener('resize', resetZoom);
   addEventListener('resize', () => checkSize());
   addEventListener('orientationchange', () => setTimeout(() => checkSize(true), 350));
   if (window.visualViewport) visualViewport.addEventListener('resize', () => checkSize());

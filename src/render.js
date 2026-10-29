@@ -1108,7 +1108,11 @@
       const lines = text.split('\n').map((l) => this.layoutLine(ctx, l, labels));
       const w = Math.max(...lines.map((l) => l.w)) + 22, lh = 17, h = lines.length * lh + 14;
       const a = s.show;
-      const x = FF.clamp(s.x - w / 2, this.view.x0 + 50, this.view.x1 - 50 - w), y = s.y - 128 - h - (1 - a) * 8;
+      // Im Bild halten: links/rechts mit Abstand zum Rand, oben unterhalb der Anzeige-Leiste
+      const px = (this.dpr || 1) / (this.sc || 1);
+      const top = this.cam.y - this.cam.h / 2 + 64 * px;
+      const x = FF.clamp(s.x - w / 2, this.view.x0 + 50, this.view.x1 - 50 - w);
+      const y = Math.max(top, s.y - 128 - h) - (1 - a) * 8;
       ctx.globalAlpha = a;
       ctx.fillStyle = 'rgba(28,24,30,0.86)';
       ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, 7) : ctx.rect(x, y, w, h); ctx.fill();
@@ -1119,7 +1123,8 @@
       ctx.fillStyle = 'rgba(28,24,30,0.86)';
       ctx.beginPath(); ctx.moveTo(s.x - 6, y + h); ctx.lineTo(s.x, y + h + 7); ctx.lineTo(s.x + 6, y + h); ctx.fill();
       ctx.strokeStyle = 'rgba(28,24,30,0.5)'; ctx.lineWidth = 1.2; ctx.setLineDash([2, 3]);
-      ctx.beginPath(); ctx.moveTo(s.x, y + h + 8); ctx.lineTo(s.x, s.y - 44); ctx.stroke(); ctx.setLineDash([]);
+      if (s.y - 44 > y + h + 8) { ctx.beginPath(); ctx.moveTo(s.x, y + h + 8); ctx.lineTo(s.x, s.y - 44); ctx.stroke(); }
+      ctx.setLineDash([]);
       ctx.textBaseline = 'middle';
       lines.forEach((l, i) => {
         let cx = x + (w - l.w) / 2;
