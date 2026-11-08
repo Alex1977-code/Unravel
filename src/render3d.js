@@ -691,7 +691,12 @@
           sg.rotateY(side * Math.PI / 2);
           sg.translate(side < 0 ? r.x : r.x + r.w, -(r.y + hv / 2), -DEPTH / 2);
           const sp = sg.attributes.position;
-          for (let i = 0; i < sp.count; i++) sp.setX(i, sp.getX(i) + side * noise(sp.getZ(i) * 1.3, -sp.getY(i)) * 7);
+          // Leicht gewellt, aber vorne und oben genau an der Kante: sonst bleibt an Ecken ein Spalt zum Durchsehen
+          for (let i = 0; i < sp.count; i++) {
+            const z = -sp.getZ(i), d = -sp.getY(i) - r.y;
+            const k = Math.min(1, Math.max(0, (z - 6) / 40)) * Math.min(1, Math.max(0, d / 14));
+            sp.setX(i, sp.getX(i) + side * noise(sp.getZ(i) * 1.3, -sp.getY(i)) * 7 * k);
+          }
           worldUV(sg, (pp, i) => pp.getZ(i), (pp, i) => pp.getY(i), wallScale);
           sg.computeVertexNormals();
           shade(sg, (pp, i) => -pp.getY(i) - r.y);
@@ -1284,6 +1289,37 @@
         this.scene.add(grp);
         return grp;
       });
+      // Bretter (von unten durchspringbar): ein paar Planken quer, auf Pfosten bis zum Boden
+      for (const o of W.oneways) {
+        const grp = new THREE.Group();
+        const boards = 4, bd = 13;
+        for (let i = 0; i < boards; i++) {
+          const b = new THREE.Mesh(new THREE.BoxGeometry(o.w + 10 + (rnd() - 0.5) * 6, 8, bd - 1.5), wood);
+          b.position.set(o.w / 2 + (rnd() - 0.5) * 4, -4, 6 - bd / 2 - i * bd);
+          b.rotation.y = (rnd() - 0.5) * 0.03; b.rotation.z = (rnd() - 0.5) * 0.015;
+          grp.add(b);
+        }
+        // Querleisten unten und Pfosten an beiden Enden
+        const back = 6 - boards * bd;
+        for (const ex of [6, o.w - 6]) {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(8, 7, -back + 4), wood);
+          rail.position.set(ex, -11, back / 2 + 3);
+          grp.add(rail);
+          let ground = Infinity;
+          for (const sd of W.solids) if (sd.x <= o.x + ex && sd.x + sd.w >= o.x + ex && sd.y >= o.y) ground = Math.min(ground, sd.y);
+          const h = Math.min(400, ground - o.y);
+          if (!isFinite(h) || h < 8) continue;
+          for (const pz of [2, back + 5]) {
+            const post = new THREE.Mesh(new THREE.BoxGeometry(8, h, 8), wood);
+            post.position.set(ex, -h / 2, pz);
+            post.rotation.z = (rnd() - 0.5) * 0.03;
+            grp.add(post);
+          }
+        }
+        grp.position.set(o.x, -o.y, 0);
+        grp.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+        this.scene.add(grp);
+      }
     }
 
     yarnMaterial(color) {
