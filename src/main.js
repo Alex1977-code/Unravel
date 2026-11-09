@@ -58,6 +58,8 @@
     if (name !== 'play') {
       const first = document.querySelector('#scr-' + name + ' [data-default]') || document.querySelector('#scr-' + name + ' .btn:not([hidden])');
       navSel = first;
+      // Mit Controller oder am Fernseher ist die Auswahl gleich markiert
+      markSel(first && (input.device === 'pad' || (net && net.tv)) ? first : null);
       if (first && !isTouch) setTimeout(() => first.focus({ preventScroll: true }), 30);
     } else if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     if (name === 'pads') renderPadList(true);
@@ -67,20 +69,42 @@
     }
   }
 
+  // Wer darf an diesem Gerät was steuern (Tastatur, Controller), je nachdem, wer online oder per Handy dabei ist
+  function ctlOpts() {
+    if (!net || net.role !== 'host') return {};
+    const occ = net.slots;
+    const o = {
+      noKeysP1: !!(occ[0] && occ[0].kind === 'remote') || net.tv,
+      noKeysP2: !!(occ[1] && occ[1].kind === 'remote'),
+      freeSlots: [0, 1].filter((s) => !occ[s] || occ[s].kind === 'local'),
+      padsFirst: !!net.tv,
+    };
+    if (net.tv && mode === 'solo') o.noKeysP1 = false;
+    return o;
+  }
   // Touch-Tasten nur, wenn sie gebraucht werden: Sind genug Bluetooth-Controller verbunden (zu zweit zwei, allein einer),
   // bleiben sie weg – so sieht man sie auch nicht, wenn das Handy oder Tablet auf den Fernseher gespiegelt wird.
   let touchSig = '';
-  function padsCover() {
-    const n = input.pads.filter((p) => input.assignment(p) !== 'off').length;
-    return mode === 'solo' ? n >= 1 : n >= 2;
+  // Welche Figuren haben einen Controller an diesem Gerät?
+  function padCover() {
+    if (net && net.role !== 'host') return new Set(input.pads.some((p) => input.assignment(p) !== 'off') ? [0, 1] : []);
+    return new Set(input.padSlots(mode, ctlOpts()).map((x) => x.slot));
   }
-  const touchWanted = () => screen === 'play' && (isTouch || input.device === 'touch') && !(net && net.tv) && !padsCover();
+  // Touch-Tasten zeigen? Und für wen: Hat nur Rot einen Controller, steuert Touch Blau – sonst Rot.
+  function touchPlan() {
+    const cov = padCover();
+    const full = mode === 'solo' || (net && net.role === 'guest') ? cov.size > 0 : cov.has(0) && cov.has(1);
+    const want = screen === 'play' && (isTouch || input.device === 'touch') && !(net && net.tv) && !full;
+    return { want, slot: mode !== 'solo' && cov.has(0) && !cov.has(1) && !(net && net.role === 'host' && net.slots[1]) ? 1 : 0 };
+  }
+  const touchKey = () => { const p = touchPlan(); return screen + p.want + p.slot; };
   function updateTouch() {
-    const want = touchWanted();
-    touchSig = screen + want;
+    const { want, slot } = touchPlan();
+    touchSig = screen + want + slot;
     $('#touch').hidden = !want;
+    $('#touch').dataset.who = slot;
     touchPad.setSolo(mode === 'solo');
-    if (want) input.setVirtual('touch', 0, touchPad.state);
+    if (want) input.setVirtual('touch', slot, touchPad.state);
     else { input.setVirtual('touch', null); touchPad.reset(); }
   }
 
@@ -373,7 +397,7 @@
       let txt = 'wartet …';
       if (occ && occ.kind === 'local') txt = 'dieses Gerät';
       else if (occ) txt = occ.info.role === 'pad' ? 'Handy-Controller' : 'eigener Bildschirm';
-      else if (net.tv && input.pads.length > [0, 1].filter((k) => !net.slots[k]).indexOf(s)) txt = 'Controller an diesem Gerät';
+      else if (net.tv && input.padSlots('coop', ctlOpts()).some((x) => x.slot === s)) txt = 'Controller an diesem Gerät';
       li.innerHTML = `<span class="who-dot" style="background:${FF.COLORS[s]}"></span><b>${NAMES[s]}</b><span>${txt}</span>`;
       li.className = occ ? 'on' : '';
       ul.appendChild(li);
@@ -659,8 +683,10 @@
     const url = location.origin + location.pathname + '?tv=1&code=' + code;
     try {
       const req = new globalThis.PresentationRequest([url]);
-      await req.start();
+      const conn = await req.start();
       toast('Fernseher verbunden – dieses Handy wird zum Controller.');
+      // Übertragung beendet (am Fernseher oder im Browser gestoppt): Bescheid sagen statt stumm weiterzulaufen
+      if (conn) for (const ev of ['close', 'terminate']) conn.addEventListener(ev, () => toast('Die Übertragung auf den Fernseher wurde beendet.'), { once: true });
       for (let i = 0; i < 12; i++) {
         await new Promise((r) => setTimeout(r, 2500));
         try { await joinRoom(code, 'pad'); if (net) return; } catch (e) { /* nochmal */ }
@@ -699,14 +725,30 @@
       t.type = 'button'; t.className = 'chip'; t.textContent = 'Vibration';
       t.addEventListener('click', () => {
         const act = p.gp && p.gp.vibrationActuator;
-        if (act && act.playEffect) act.playEffect('dual-rumble', { duration: 300, strongMagnitude: 0.8, weakMagnitude: 0.8 }).catch(() => {});
+        if (act && act.playEffect) { try { Promise.resolve(act.playEffect('dual-rumble', { duration: 300, strongMagnitude: 0.8, weakMagnitude: 0.8 })).catch(() => {}); } catch (e) { /* nicht unterstützt */ } }
         else toast('Dieser Controller oder Browser kann nicht vibrieren.');
       });
       box.appendChild(t);
       ul.appendChild(li);
     }
   }
-  addEventListener('gamepadconnected', (e) => { toast(`Controller verbunden: ${(e.gamepad.id || '').replace(/\(.*?\)/g, '').trim().slice(0, 30)}`); if (screen === 'lobby') renderLobby(); });
+  const padName = (gp) => (gp.id || '').replace(/\(.*?\)/g, '').trim().slice(0, 30) || 'Controller';
+  addEventListener('gamepadconnected', (e) => {
+    const idx = e.gamepad.index;
+    // Kurz warten, bis der Controller abgefragt ist, dann sagen, wen er steuert
+    setTimeout(() => {
+      const hit = input.padSlots(mode, ctlOpts()).find((x) => x.p.index === idx);
+      const who = mode === 'solo' || !hit ? '' : ` – steuert ${NAMES[hit.slot]}`;
+      toast(`Controller verbunden: ${padName(e.gamepad)}${game && screen === 'play' ? who : ''}`, hit && mode !== 'solo' ? hit.slot : undefined);
+    }, 250);
+    if (screen === 'lobby') renderLobby();
+  });
+  // Controller weg (Akku leer, außer Reichweite): Spiel anhalten, damit niemand hilflos herumsteht
+  addEventListener('gamepaddisconnected', (e) => {
+    toast(`Controller getrennt: ${padName(e.gamepad)}`);
+    if (screen === 'play' && game && !(net && net.role === 'guest')) show('pause');
+    if (screen === 'lobby') renderLobby();
+  });
   addEventListener('gamepaddisconnected', () => toast('Controller getrennt.'));
 
   // ------------------------------------------------------------ Wetter
@@ -792,23 +834,48 @@
   syncMute();
 
   // Menü mit Gamepad, Pfeiltasten oder Handy-Controller bedienen
+  // Auswahl sichtbar machen, auch wenn die Seite keinen Tastaturfokus hat (Fernseher, gespiegeltes Handy mit Controller)
+  function markSel(el) {
+    for (const x of $$('.nav-sel')) x.classList.toggle('nav-sel', false);
+    if (el) el.classList.add('nav-sel');
+  }
   function menuNav(gl) {
-    const btns = $$('#scr-' + screen + ' .btn').filter((b) => !b.hidden && b.offsetParent);
+    if (!(gl.up || gl.down || gl.left || gl.right || gl.ok || gl.back)) return;
+    if (gl.back) {
+      if (screen === 'pause') act('resume');
+      else if (['levels', 'help', 'online', 'tv', 'pads', 'story', 'local'].includes(screen)) act('back');
+      return;
+    }
+    const btns = $$('#scr-' + screen + ' .btn').filter((b) => !b.hidden && !b.disabled && b.offsetParent);
     if (!btns.length) return;
     // Auswahl merken: hat die Seite keinen Fokus (Fernseher, Bedienung vom Handy), zählt die gemerkte Taste
     let i = btns.indexOf(document.activeElement);
     if (i < 0) i = btns.indexOf(navSel);
-    const pick = (k) => { navSel = btns[k]; navSel.focus({ preventScroll: false }); };
-    if (gl.down) pick((i + 1) % btns.length);
-    if (gl.up) pick((i - 1 + btns.length) % btns.length);
-    if (gl.ok) {
-      if (i < 0) pick(Math.max(0, btns.findIndex((b) => b.hasAttribute('data-default'))));
-      else btns[i].click();
-    }
-    if (gl.back) {
-      if (screen === 'pause') act('resume');
-      else if (['levels', 'help', 'online', 'tv', 'pads', 'story', 'local'].includes(screen)) act('back');
-    }
+    if (i < 0) i = Math.max(0, btns.findIndex((b) => b.hasAttribute('data-default')));
+    const pick = (b) => { navSel = b; markSel(b); b.focus({ preventScroll: true }); if (b.scrollIntoView) b.scrollIntoView({ block: 'nearest', inline: 'nearest' }); };
+    const cur = btns[i];
+    // War die Auswahl noch nicht zu sehen (erster Tastendruck am Controller auf einem Touch-Gerät), erst zeigen
+    if (!cur.classList.contains('nav-sel') && document.activeElement !== cur) { pick(cur); return; }
+    // Richtung nach Lage auf dem Bildschirm (das Levelraster hat mehrere Spalten)
+    const toward = (dx, dy) => {
+      const r = cur.getBoundingClientRect();
+      let best = null, bs = 1e9;
+      for (const b of btns) {
+        if (b === cur) continue;
+        const q = b.getBoundingClientRect();
+        const ex = (q.left + q.right - r.left - r.right) / 2, ey = (q.top + q.bottom - r.top - r.bottom) / 2;
+        const along = dx ? ex * dx : ey * dy, across = dx ? Math.abs(ey) : Math.abs(ex);
+        if (along < 6) continue;
+        const sc = along + across * 2.5;
+        if (sc < bs) { bs = sc; best = b; }
+      }
+      return best;
+    };
+    if (gl.down) pick(toward(0, 1) || btns[(i + 1) % btns.length]);
+    else if (gl.up) pick(toward(0, -1) || btns[(i - 1 + btns.length) % btns.length]);
+    else if (gl.right) { const t = toward(1, 0); if (t) pick(t); }
+    else if (gl.left) { const t = toward(-1, 0); if (t) pick(t); }
+    else if (gl.ok) { markSel(cur); cur.click(); }
   }
 
   // Größe bei jedem Bild prüfen: iOS meldet Drehen und Leisten-Ein/Ausblenden nicht immer zuverlässig
@@ -846,7 +913,7 @@
   addEventListener('pointerdown', () => FF.audio.init(), { once: true });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && screen === 'play' && !(net && net.role === 'guest')) show('pause');
-    if (!document.hidden && (screen === 'play' || (net && (net.role === 'pad' || net.tv)))) keepAwake();
+    if (!document.hidden && (screen === 'play' || screen === 'cine' || (net && (net.role === 'pad' || net.tv)))) keepAwake();
   });
 
   // ------------------------------------------------------------ Schleife
@@ -860,6 +927,9 @@
     const gl = input.global();
     for (const k in navPending) { gl[k] = 1; delete navPending[k]; }
     if (gl.mute) { FF.audio.init(); FF.audio.setMuted(!FF.audio.muted); syncMute(); }
+
+    // Erster Tastendruck am Controller schaltet den Ton frei (am Fernseher gibt es oft keine andere Eingabe)
+    if ((!FF.audio.ctx || FF.audio.ctx.state === 'suspended') && input.pads.some((p) => p.any)) FF.audio.init();
 
     if (screen === 'pad') { input.endFrame(); requestAnimationFrame(loop); return; }
     if (screen === 'cine') {
@@ -875,17 +945,7 @@
     if (screen === 'play' && game && !guest && (!R.ready || R.ready(game))) {
       if (gl.pause) show('pause');
       else {
-        let opts = {};
-        if (net && net.role === 'host') {
-          const occ = net.slots;
-          opts = {
-            noKeysP1: !!(occ[0] && occ[0].kind === 'remote') || net.tv,
-            noKeysP2: !!(occ[1] && occ[1].kind === 'remote'),
-            freeSlots: [0, 1].filter((s) => !occ[s]),
-          };
-          if (net.tv && mode === 'solo') opts.noKeysP1 = false;
-        }
-        game.frame(dt, input.controls(mode, opts));
+        game.frame(dt, input.controls(mode, ctlOpts()));
         handleEvents();
       }
     } else if (guest && game) {
@@ -915,7 +975,7 @@
     if (padT <= 0) {
       if (screen === 'pads') renderPadList();
       if (screen === 'lobby') renderLobbyPads();
-      if (screen + touchWanted() !== touchSig) updateTouch();   // Controller ein- oder ausgeschaltet
+      if (touchKey() !== touchSig) updateTouch();   // Controller ein- oder ausgeschaltet
       padT = 0.3;
     }
     if (FF.audio.ctx) {
@@ -971,6 +1031,6 @@
   FF.debug = {
     get game() { return game; }, get net() { return net; }, get screen() { return screen; },
     startLevel, setMode: (m) => (mode = m), input, renderer: R, openRoom, joinRoom, joinLocal, act,
-    setLocalOffer: (o) => (localOffer = o), playCine, launch, get localAnswer() { return lastAnswer; },
+    setLocalOffer: (o) => (localOffer = o), playCine, launch, ctlOpts, get localAnswer() { return lastAnswer; },
   };
 })();

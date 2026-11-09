@@ -224,9 +224,38 @@ function miniBroker(port) {
     await ph.waitForFunction(() => FF.debug.screen === 'play', null, { timeout: 10000 });
     await ph.waitForTimeout(600);
     assert(await ph.evaluate(() => document.querySelector('#touch').hidden), 'Zwei Controller: Touch-Tasten ausgeblendet');
+    const slotsOf = (pg) => pg.evaluate(() => FF.debug.input.padSlots('coop', FF.debug.ctlOpts()).map((x) => x.p.index + ':' + x.slot).sort().join());
+    assert.strictEqual(await slotsOf(ph), '0:0,1:1', 'Controller 1 = Rot, Controller 2 = Blau');
+    // Controller 2 fällt aus: Controller 1 bleibt Rot, die Touch-Tasten kommen zurück und steuern Blau
     await ph.evaluate(() => { globalThis.__pads = [globalThis.__pads[0]]; });
     await ph.waitForFunction(() => !document.querySelector('#touch').hidden, null, { timeout: 3000 });
-    console.log('  ✓ Zwei Bluetooth-Controller am Handy: Touch-Tasten verschwinden, mit einem kommen sie zurück');
+    assert.strictEqual(await slotsOf(ph), '0:0', 'Controller 1 bleibt Rot');
+    assert.strictEqual(await ph.evaluate(() => document.querySelector('#touch').dataset.who), '1', 'Touch steuert Blau');
+    console.log('  ✓ Zwei Bluetooth-Controller am Handy: Touch-Tasten verschwinden; fällt einer aus, behält der andere seine Figur');
+
+    // Fernseher mit einem Controller am Gerät: er steuert Rot; kommt ein Handy dazu (Rot), wechselt er zu Blau
+    const tv2 = await open(`http://127.0.0.1:8790/index.html?tv=1&code=GP88&${q}`);
+    await tv2.evaluate(() => {
+      const mk = (i) => ({ index: i, id: 'Test-Controller ' + i, mapping: 'standard', axes: [0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) });
+      globalThis.__pads = [mk(0)];
+      navigator.getGamepads = () => globalThis.__pads;
+    });
+    await tv2.waitForFunction(() => FF.debug.net && FF.debug.net.host.code === 'GP88', null, { timeout: 15000 });
+    await tv2.waitForTimeout(500);
+    assert.strictEqual(await slotsOf(tv2), '0:0', 'Controller am Fernseher steuert Rot');
+    const pad2 = await open(`http://127.0.0.1:8790/index.html?${q}`, { viewport: { width: 400, height: 800 }, hasTouch: true });
+    await pad2.evaluate(() => FF.debug.joinRoom('GP88', 'pad'));
+    await pad2.waitForFunction(() => FF.debug.net && FF.debug.net.role === 'pad', null, { timeout: 15000 });
+    await tv2.waitForFunction(() => FF.debug.net.slots[0], null, { timeout: 5000 });
+    assert.strictEqual(await slotsOf(tv2), '0:1', 'Handy ist Rot, der Controller wechselt zu Blau');
+    // Menü am Fernseher mit dem Controller bedienen: A wählt „Zu zweit starten“, A startet das erste Level
+    const press = async (k) => { await tv2.evaluate((k) => { globalThis.__pads[0].buttons[k] = { pressed: true, value: 1 }; }, k); await tv2.waitForTimeout(100); await tv2.evaluate((k) => { globalThis.__pads[0].buttons[k] = { pressed: false, value: 0 }; }, k); await tv2.waitForTimeout(150); };
+    await press(0); await press(0);
+    await tv2.waitForFunction(() => FF.debug.screen === 'play', null, { timeout: 5000 });
+    const bx0 = await tv2.evaluate(() => FF.debug.game.players[1].x);
+    await tv2.evaluate(() => { globalThis.__pads[0].axes = [1, 0]; }); await tv2.waitForTimeout(500); await tv2.evaluate(() => { globalThis.__pads[0].axes = [0, 0]; });
+    assert((await tv2.evaluate(() => FF.debug.game.players[1].x)) > bx0 + 30, 'Controller am Fernseher bewegt Blau');
+    console.log('  ✓ Fernseher: Controller am Gerät und Handy-Controller teilen sich die Figuren, Menü per Controller');
   } finally {
     await b.close(); web.close(); ps.close(); broker.close();
   }
