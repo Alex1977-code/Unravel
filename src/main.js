@@ -41,7 +41,7 @@
   const touchPad = new FF.TouchPad($('#touch'));
 
   // ------------------------------------------------------------ Bildschirme
-  const screens = ['title', 'levels', 'help', 'pause', 'win', 'online', 'local', 'lobby', 'tv', 'pads', 'guest'];
+  const screens = ['title', 'levels', 'help', 'pause', 'win', 'online', 'local', 'lobby', 'tv', 'pads', 'guest', 'story', 'cine'];
   let navSel = null, wake = null;
   function show(name) {
     screen = name;
@@ -62,7 +62,7 @@
     } else if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     if (name === 'pads') renderPadList(true);
     if (net && net.role === 'host') {
-      net.host.broadcast({ t: 'screen', name, lv: game ? game.levelIndex : -1, mode });
+      net.host.broadcast({ t: 'screen', name, lv: game ? game.levelIndex : -1, mode, cine: name === 'cine' ? cineId : undefined });
       if (name === 'lobby') renderLobby();
     }
   }
@@ -110,10 +110,62 @@
       b.querySelector('.meta').innerHTML = pr.done
         ? `<span class="done">✓ geschafft</span> · ${pr.beads || 0}/${L.beads.length}`
         : `${L.beads.length} Funken`;
-      b.addEventListener('click', () => startLevel(i));
+      b.addEventListener('click', () => launch(i));
       li.appendChild(b);
       list.appendChild(li);
     });
+  }
+
+  // ------------------------------------------------------------ Zwischensequenzen (cutscenes.js)
+  // Aus mit ?cine=off; ohne Bildausgabe (Tests) nur mit ?cine=on
+  const cineOn = !!FF.Cine && params.get('cine') !== 'off' && (params.get('render') !== 'off' || params.get('cine') === 'on');
+  let cineId = null, cineAfter = null, cineMood = 'garden';
+  function playCine(id, after) {
+    if (!cineOn || !FF.Cine.has(id)) { if (after) after(); return; }
+    if (FF.Cine.active) FF.Cine.stop();
+    cineId = id; cineAfter = after;
+    FF.audio.init();
+    if (FF.audio.moodName !== 'cine') cineMood = FF.audio.moodName;
+    FF.audio.setMood('cine');
+    show('cine');
+    FF.Cine.play($('#cine'), id, { onEnd: () => {
+      const a = cineAfter; cineAfter = null; cineId = null;
+      FF.audio.setMood(cineMood);
+      if (a) a();
+    } });
+    keepAwake();
+  }
+  function stopCine() {
+    if (!FF.Cine || !FF.Cine.active) return;
+    FF.Cine.stop(); cineAfter = null; cineId = null;
+    FF.audio.setMood(cineMood);
+  }
+  // Level aus dem Menü starten: vor dem allerersten Level läuft einmal die Vorgeschichte
+  function launch(i) {
+    if (i === 0 && cineOn && !FF.store.get('introSeen', false)) {
+      FF.store.set('introSeen', true);
+      playCine('intro', () => startLevel(0));
+    } else startLevel(i);
+  }
+  // Galerie: Vorgeschichte und alle schon gefundenen Erinnerungen
+  function buildStory() {
+    const list = $('#story-list');
+    list.textContent = '';
+    const add = (id, title, sub, open) => {
+      const li = document.createElement('li'), b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn story-item'; b.disabled = !open;
+      b.innerHTML = '<b></b><small></small>';
+      b.querySelector('b').textContent = open ? title : 'Noch nicht gefunden';
+      b.querySelector('small').textContent = sub;
+      if (open) b.addEventListener('click', () => { FF.audio.play('click'); playCine(id, () => { buildStory(); show('story'); }); });
+      li.appendChild(b); list.appendChild(li);
+    };
+    add('intro', 'Vorgeschichte', 'Maja kehrt zurück', true);
+    FF.LEVELS.forEach((L, i) => {
+      const st = FF.storyOf(L), done = (progress['solo:' + L.id] || {}).done || (progress['coop:' + L.id] || {}).done;
+      if (st) add(L.id, i === FF.LEVELS.length - 1 ? st.name + ' · ' + FF.STORY.finale.title : st.name, `${i + 1} · ${L.name}`, !!done);
+    });
+    if (!cineOn) list.insertAdjacentHTML('afterbegin', '<li class="note">Zwischensequenzen sind ausgeschaltet.</li>');
   }
 
   function startLevel(i) {
@@ -202,8 +254,9 @@
     saveProgress();
     setTimeout(() => {
       if (screen !== 'play' || !game || game.state !== 'won') return;
-      showWin(i, game.beadsGot(), game.beads.length);
-      show('win');
+      // Erst die Erinnerung als Filmszene, dann die Karte mit dem Ergebnis
+      const g = game;
+      playCine(L.id, () => { if (game !== g) return; showWin(i, g.beadsGot(), g.beads.length); show('win'); });
     }, 1300);
   }
 
@@ -498,6 +551,7 @@
   function guestMessage(m) {
     switch (m.t) {
       case 'start':
+        stopCine();
         mode = m.mode;
         game = new FF.Game(m.lv, m.mode);
         game.view = true;
@@ -510,7 +564,16 @@
         if (m.ts) for (const [t, w] of m.ts) toast(t, w);
         break;
       case 'screen':
-        if (m.name === 'play' && game) show('play');
+        if (m.name !== 'cine') stopCine();
+        if (m.name === 'cine') {
+          // Der Gastgeber schaut eine Zwischensequenz: hier dieselbe zeigen; danach meldet er sich mit dem nächsten Bildschirm
+          const g = game;
+          if (m.cine && !(FF.Cine.active && cineId === m.cine)) playCine(m.cine, () => {
+            if (g && game === g && g.state === 'won') { showWin(g.levelIndex, g.beadsGot(), g.beads.length); show('win'); }
+            else { $('#guest-text').textContent = 'Verbunden. Warte, bis Rot ein Level startet.'; show('guest'); }
+          });
+        }
+        else if (m.name === 'play' && game) show('play');
         else if (m.name === 'pause' && game) show('pause');
         else if (m.name === 'win' && game) { showWin(game.levelIndex, game.beadsGot(), game.beads.length); show('win'); }
         else if (!['play', 'pause', 'win'].includes(m.name)) {
@@ -669,6 +732,9 @@
       case 'online': $('#online-msg').textContent = ''; show('online'); break;
       case 'tv': show('tv'); break;
       case 'pads': show('pads'); break;
+      case 'story': buildStory(); show('story'); break;
+      case 'cine-next': FF.Cine.next(); break;
+      case 'cine-skip': FF.Cine.skip(); break;
       case 'help': returnTo = screen; show('help'); break;
       case 'fullscreen': goFullscreen(false); break;
       case 'weather': cycleWeather(); break;
@@ -714,6 +780,7 @@
     }
   }
   $$('[data-act]').forEach((b) => b.addEventListener('click', () => act(b.dataset.act)));
+  $('#cine').addEventListener('click', () => FF.Cine.next());
   $('#join-code').addEventListener('input', (e) => { e.target.value = FF.cleanCode(e.target.value); });
   $('#join-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') act('join-player'); });
 
@@ -740,7 +807,7 @@
     }
     if (gl.back) {
       if (screen === 'pause') act('resume');
-      else if (['levels', 'help', 'online', 'tv', 'pads'].includes(screen)) act('back');
+      else if (['levels', 'help', 'online', 'tv', 'pads', 'story', 'local'].includes(screen)) act('back');
     }
   }
 
@@ -795,6 +862,14 @@
     if (gl.mute) { FF.audio.init(); FF.audio.setMuted(!FF.audio.muted); syncMute(); }
 
     if (screen === 'pad') { input.endFrame(); requestAnimationFrame(loop); return; }
+    if (screen === 'cine') {
+      // Zwischensequenz: OK = nächste Einstellung, Zurück/Pause = überspringen; das Spiel selbst ruht
+      if (gl.ok) FF.Cine.next();
+      if (gl.back || gl.pause) FF.Cine.skip();
+      FF.Cine.frame(dt);
+      if (FF.audio.ctx) { FF.audio.music(true); FF.audio.update(null, dt); }
+      input.endFrame(); requestAnimationFrame(loop); return;
+    }
 
     const guest = net && net.role === 'guest';
     if (screen === 'play' && game && !guest && (!R.ready || R.ready(game))) {
@@ -896,6 +971,6 @@
   FF.debug = {
     get game() { return game; }, get net() { return net; }, get screen() { return screen; },
     startLevel, setMode: (m) => (mode = m), input, renderer: R, openRoom, joinRoom, joinLocal, act,
-    setLocalOffer: (o) => (localOffer = o), get localAnswer() { return lastAnswer; },
+    setLocalOffer: (o) => (localOffer = o), playCine, launch, get localAnswer() { return lastAnswer; },
   };
 })();

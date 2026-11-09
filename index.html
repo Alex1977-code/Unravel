@@ -77,6 +77,7 @@
           <button type="button" class="btn" data-act="pads">Controller</button>
           <button type="button" class="btn" data-act="weather" id="btn-weather2">Wetter</button>
           <button type="button" class="btn" data-act="help">Steuerung</button>
+          <button type="button" class="btn" data-act="story">Geschichte</button>
           <button type="button" class="btn" data-act="fullscreen">Vollbild</button>
         </div>
       </div>
@@ -281,6 +282,23 @@
     </div>
   </section>
 
+  <section id="scr-story" class="screen" hidden>
+    <div class="panel">
+      <h2>Die Geschichte</h2>
+      <p class="lede">Jede gefundene Erinnerung ist eine kleine Filmszene. Hier kannst du sie noch einmal ansehen.</p>
+      <ol id="story-list" class="story-list"></ol>
+      <div class="menu row"><button type="button" class="btn" data-act="back">Zurück</button></div>
+    </div>
+  </section>
+
+  <section id="scr-cine" class="screen cine" hidden>
+    <canvas id="cine" aria-label="Zwischensequenz"></canvas>
+    <div class="cine-ctl">
+      <button type="button" class="btn small" data-act="cine-next" data-default>Weiter</button>
+      <button type="button" class="btn small" data-act="cine-skip">Überspringen</button>
+    </div>
+  </section>
+
   <section id="scr-win" class="screen dim" hidden>
     <div class="panel small">
       <h2 id="win-title">Geschafft!</h2>
@@ -311,6 +329,7 @@
 <script src="src/physics.js"></script>
 <script src="src/levels.js"></script>
 <script src="src/story.js"></script>
+<script src="src/cutscenes.js"></script>
 <script src="src/game.js"></script>
 <script src="src/audio.js"></script>
 <script src="src/input.js"></script>

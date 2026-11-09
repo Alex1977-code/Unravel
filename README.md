@@ -106,8 +106,9 @@ Die Geschichte folgt dem Konzept „Das Licht am Ende des Fadens“: Aus dem rot
 - **Der Schal:** Im Levelmenü wächst der Schal mit jeder gefundenen Erinnerung um eine Reihe mit eigenem Muster (Wellen, Möwen, Eiskristalle, Blätter …).
 - **Astrids Lied:** Kommt man dem Erinnerungsstück näher, setzt eine gesummte Melodie ein und wird lauter.
 - **Finale:** Nach „Das Vergessen“ legt Maja ihrem Vater den fertigen Schal um.
+- **Zwischensequenzen:** Vor dem ersten Level läuft die Vorgeschichte, nach jedem Level eine kurze Filmszene: erst die Rückblende zur gefundenen Erinnerung (warm, die Menschen als leuchtende Lichtfiguren), dann Maja in der Gegenwart (Scherenschnitt im Lampenlicht). Am Ende folgen Finale und Epilog. Breitbild mit Balken, langsame Kamerafahrten über mehrere Bildebenen, Filmkorn, Untertitel. Unter „Geschichte“ im Hauptmenü lassen sich alle gefundenen Szenen wieder ansehen. Tippen oder OK springt zur nächsten Einstellung, „Überspringen“ beendet die Szene; mit `?cine=off` sind sie ganz aus. Alles wird live gemalt (`src/cutscenes.js`), es gibt keine Videodateien.
 
-Texte und Zuordnung stehen in `src/story.js`. Vom Konzept noch nicht umgesetzt sind unter anderem die Innenräume des Häuschens, Seeglas-Scherben, Zwischensequenzen und neue Mechaniken wie Gezeiten, gefrierendes Garn, Segel und Lichtstrahl-Rätsel.
+Texte und Zuordnung stehen in `src/story.js`. Vom Konzept noch nicht umgesetzt sind unter anderem die Innenräume des Häuschens als spielbare Level, Seeglas-Scherben und neue Mechaniken wie Gezeiten, gefrierendes Garn, Segel und Lichtstrahl-Rätsel.
 
 ## Feine Details
 
@@ -132,6 +133,7 @@ Texte und Zuordnung stehen in `src/story.js`. Vom Konzept noch nicht umgesetzt s
 | `src/touch.js` | Touch-Steuerung im Gamepad-Look (auch der Handy-Controller) |
 | `src/net.js` | Online-Spiel: Räume, Eingaben, Zustandsbilder |
 | `src/story.js` | Geschichte: Erinnerung je Level, Schal-Muster, Finale |
+| `src/cutscenes.js` | Zwischensequenzen: Figuren, Kulissen, alle Szenen, Abspieler |
 | `src/details3d.js` | Erinnerungsstücke am Ziel, Figuren-Feinheiten, Tiere |
 | `src/relay.js` | Umweg über MQTT-Vermittler, wenn keine direkte Verbindung zustande kommt |
 | `src/local.js` | Spielen ohne Internet: Verbindungsdaten per QR-Code, Kamera-Scanner |

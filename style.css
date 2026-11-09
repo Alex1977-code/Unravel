@@ -524,3 +524,14 @@ body.local-room .lobby-code .qr, .local-step .qr { width: min(260px, 72vw, 64vh)
 .memory strong { display: block; margin: 2px 0 4px; font: italic 600 21px var(--display, Georgia, serif); color: var(--linen); }
 .memory p { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--linen-dim); }
 .level-card .world { display: block; font: 800 10.5px var(--body); letter-spacing: 0.12em; text-transform: uppercase; color: var(--linen-faint); margin-bottom: 1px; }
+
+/* Zwischensequenzen: schwarzer Kinosaal, Bedienung klein unten rechts */
+.screen.cine { padding: 0; background: #000; }
+.screen.cine canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.cine-ctl { position: absolute; right: max(12px, env(safe-area-inset-right, 0px)); top: max(10px, env(safe-area-inset-top, 0px)); display: flex; gap: 8px; opacity: 0.5; transition: opacity 0.2s; }
+.cine-ctl:hover, .cine-ctl:focus-within { opacity: 1; }
+.cine-ctl .btn { padding: 6px 12px; font-size: 13px; }
+.story-list { list-style: none; margin: 0 0 14px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.story-item { width: 100%; text-align: left; }
+.story-item b { display: block; }
+.story-item:disabled { opacity: 0.4; cursor: default; }

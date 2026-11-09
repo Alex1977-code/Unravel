@@ -19,6 +19,8 @@
     halloween: { root: 45, scale: [0, 2, 3, 5, 7, 8, 11], bpm: 70, prog: [0, 5, 4, 0], fiddle: 0.75, drone: 0.65, amb: ['wind', 'owl', 'crickets', 'creak'] },
     lighthouse: { root: 43, scale: [0, 2, 3, 5, 7, 8, 10], bpm: 68, prog: [0, 5, 6, 4], fiddle: 0.6, drone: 0.55, amb: ['waves', 'wind', 'wind2'] },
     aurora: { root: 52, scale: [0, 2, 4, 6, 7, 9, 11], bpm: 60, prog: [0, 4, 5, 3], fiddle: 0.65, drone: 0.5, amb: ['wind', 'bells'] },
+    // Zwischensequenzen: Majas Thema – zögerndes Klavier mit Pausen über leisen Streichern; in Rückblenden summt Astrids Lied
+    cine: { root: 50, scale: [0, 2, 3, 5, 7, 8, 10], bpm: 50, prog: [0, 5, 2, 4], fiddle: 0, drone: 0.4, amb: [], sparse: true },
     forget: { root: 48, scale: [0, 2, 3, 5, 7, 8, 10], bpm: 54, prog: [0, 5, 3, 4], fiddle: 0.9, drone: 0.7, amb: ['wind'] },
   };
 
@@ -27,7 +29,7 @@
     garden: { drum: 0, voice: 0.5, tick: 0.25 }, quarry: { drum: 0.45, voice: 0.6, tick: 0 }, pond: { drum: 0, voice: 0.4, tick: 0.35 },
     autumn: { drum: 0.6, voice: 0.5, tick: 0.1 }, dusk: { drum: 0.3, voice: 0.8, tick: 0 }, marsh: { drum: 0.25, voice: 0.6, tick: 0.1 },
     coast: { drum: 0, voice: 0.5, tick: 0.3 }, winter: { drum: 0.2, voice: 0.9, tick: 0 }, scrap: { drum: 0.5, voice: 0.3, tick: 0.6 },
-    halloween: { drum: 0.7, voice: 0.7, tick: 0.15 }, lighthouse: { drum: 0.85, voice: 0.6, tick: 0 }, aurora: { drum: 0.3, voice: 1, tick: 0.1 }, forget: { drum: 0.35, voice: 1, tick: 0 },
+    halloween: { drum: 0.7, voice: 0.7, tick: 0.15 }, lighthouse: { drum: 0.85, voice: 0.6, tick: 0 }, aurora: { drum: 0.3, voice: 1, tick: 0.1 }, forget: { drum: 0.35, voice: 1, tick: 0 }, cine: { drum: 0, voice: 1, tick: 0 },
   };
 
   // Astrids Lied: [Stufe der Tonleiter, Länge in Achteln]; ein ruhiges Wiegenlied in sechs Takten
@@ -345,7 +347,7 @@
       while (this.nextNote < c.currentTime + 0.4) {
         const t = this.nextNote, s = this.step++;
         const bar = Math.floor(s / 8), pos = s % 8;
-        const section = Math.floor(bar / 8) % 4;           // 0 Klavier, 1 + Streicher, 2 voll, 3 ruhig
+        const section = M.sparse ? 1 : Math.floor(bar / 8) % 4;   // 0 Klavier, 1 + Streicher, 2 voll, 3 ruhig
         const chordStart = bar % 2 === 0 && pos === 0;
         const chord = M.prog[Math.floor(bar / 2) % M.prog.length];
         const tones = [deg(chord), deg(chord + 2), deg(chord + 4)];
@@ -354,7 +356,7 @@
         if (section !== 3 || pos % 2 === 0) {
           const A = [0, 2, 4, 7, 4, 2, 9];
           const a = A[s % 7];
-          if (Math.random() < 0.88) this.piano(deg(chord + a) + 12, t + human(), 0.07 + Math.random() * 0.03, -0.15);
+          if (M.sparse ? pos % 2 === 0 && Math.random() < 0.78 : Math.random() < 0.88) this.piano(deg(chord + a) + 12, t + human(), 0.07 + Math.random() * 0.03, -0.15);
           const B = [4, null, 9, null, 11];
           const bnote = B[s % 5];
           // Die hohe Schleife gehört zur Bewegung: Wer länger stillsteht, hört nur noch die ruhige Grundfläche
@@ -472,7 +474,7 @@
     // Laufende Rückmeldung aus dem Spiel: Schritte, Faden-Knarzen, Schwung-Rauschen.
     update(g, dt) {
       // Für die Musik: Nähe zum Erinnerungsstück und ob sich gerade jemand bewegt
-      if (!g) { this.near = 0; this.moveT = 3; }
+      if (!g) { this.near = this.cineNear || 0; this.moveT = this.mood.sparse ? 0 : 3; }
       else {
         let dist = 1e9, moving = false;
         for (const p of g.players) {

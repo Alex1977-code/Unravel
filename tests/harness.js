@@ -8,7 +8,7 @@ function load() {
   const ctx = { console, Math, JSON, Object, Array, Set, Map };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
-  for (const f of ['core.js', 'physics.js', 'levels.js', 'story.js', 'game.js']) {
+  for (const f of ['core.js', 'physics.js', 'levels.js', 'story.js', 'cutscenes.js', 'game.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', f), 'utf8'), ctx, { filename: f });
   }
   return ctx.FF;

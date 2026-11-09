@@ -190,6 +190,29 @@ function miniBroker(port) {
     assert(lx1 > lx0 + 50, 'Gast bewegt Blau ohne Internet');
     console.log(`  ✓ Ohne Internet: QR-Codes tauschen, dann im WLAN spielen (Angebot ${offerLink.split('#L=')[1].length} Zeichen, Antwort ${ans.length})`);
 
+    // Zwischensequenzen: Vorgeschichte vor dem ersten Level, Filmszene nach dem Ziel, alle Einstellungen malen ohne Fehler
+    const cq = q.replace('render=off', 'render=off&cine=on');
+    const cp = await open(`http://127.0.0.1:8790/index.html?${cq}`);
+    await cp.evaluate(() => { FF.debug.setMode('coop'); FF.debug.launch(0); });
+    await cp.waitForFunction(() => FF.debug.screen === 'cine', null, { timeout: 5000 });
+    await cp.waitForTimeout(1300);
+    await cp.click('[data-act=cine-skip]');
+    await cp.waitForFunction(() => FF.debug.screen === 'play', null, { timeout: 5000 });
+    await cp.evaluate(() => { const g = FF.debug.game; g.players.forEach((pl) => { pl.x = g.goal.x - 8; pl.y = g.goal.y - pl.h; }); });
+    await cp.waitForFunction(() => FF.debug.screen === 'cine', null, { timeout: 8000 });
+    await cp.waitForTimeout(1300);
+    await cp.keyboard.press('Escape');
+    await cp.waitForFunction(() => FF.debug.screen === 'win', null, { timeout: 5000 });
+    const painted = await cp.evaluate(() => {
+      const cv = document.createElement('canvas'); cv.style.cssText = 'position:fixed;left:0;top:0;width:480px;height:270px'; document.body.appendChild(cv);
+      let n = 0;
+      for (const id of FF.Cine.ids()) for (let i = 0; i < FF.Cine.shots(id); i++) for (const u of [0.02, 0.5, 0.97]) { FF.Cine.render(cv, id, i, u, u * 8); n++; }
+      cv.remove();
+      return n;
+    });
+    assert(painted > 100, 'alle Einstellungen gemalt');
+    console.log(`  ✓ Zwischensequenzen: Vorgeschichte, Szene nach dem Ziel, ${painted} Bilder aus allen Einstellungen`);
+
     // Ein Handy, zwei Bluetooth-Controller (z. B. auf den Fernseher gespiegelt): keine Touch-Tasten im Bild
     const ph = await open(`http://127.0.0.1:8790/index.html?${q}`, { viewport: { width: 800, height: 400 }, hasTouch: true, isMobile: true });
     await ph.evaluate(() => {

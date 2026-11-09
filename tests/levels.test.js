@@ -498,6 +498,9 @@ test('Geschichte: jedes Level hat eine Erinnerung und eine eigene Reihe im Schal
     assert(!seen.has(st.item), 'Erinnerungsstück doppelt: ' + st.item);
     seen.add(st.item);
   }
+  // Zu jeder Erinnerung gibt es eine Zwischensequenz: Rückblende zuerst, danach Majas Gegenwart; dazu die Vorgeschichte
+  assert(FF.Cine.has('intro'), 'Vorgeschichte fehlt');
+  for (const lv of FF.LEVELS) assert(FF.Cine.shots(lv.id) >= 2, 'Zwischensequenz fehlt: ' + lv.id);
   const svg = FF.scarfSVG(new Set(FF.LEVELS.slice(0, 3).map((l) => l.id)));
   assert.strictEqual((svg.match(/url\(#knit\)/g) || []).length, 3, 'drei gestrickte Reihen');
 });
