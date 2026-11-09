@@ -78,11 +78,11 @@ Es gibt eine einzige Grafikstufe: 3D in voller Qualität. Damit es auch auf schw
 
 ## Klang
 
-Musik und Geräusche werden im Browser erzeugt: gezupfte Gitarre (Karplus-Strong), eine Fidel mit Vibrato und ein Bordun, je Level in eigener Tonart. Dazu Wind, Vögel, Wasser, Frösche, Krähen, Grillen und eine Eule, außerdem Schritte, das Knarzen des Fadens beim Klettern und Rauschen beim Schwingen.
+Musik und Geräusche werden im Browser erzeugt: Klavier mit Filzdämpfer, Streicher, eine wortlose Stimme und eine Rahmentrommel, je Level in eigener Tonart. Die Musik reagiert auf das Spiel: Wer stillsteht, hört nur die ruhige Grundfläche, und nahe dem Erinnerungsstück setzt Astrids Lied ein. Dazu Wind, Vögel, Wasser, Frösche, Krähen, Grillen und eine Eule, außerdem Schritte, das Knarzen des Fadens beim Klettern und Rauschen beim Schwingen.
 
 ## Welten
 
-Wie Unravel hat Verstrickt 12 Welten (Unravel Two hat 7 Kapitel plus Herausforderungen). Jede bringt eine eigene Stimmung, Musik und automatisches Wetter mit:
+Verstrickt hat 13 Welten. Jede bringt eine eigene Stimmung, Musik und automatisches Wetter mit, und in jeder liegt am Ziel ein Erinnerungsstück (siehe „Geschichte“):
 
 1. **Morgengarten**: Laufen, Springen, das erste Lasso und ein Schwung über den Teich.
 2. **Alter Steinbruch**: Festhalten, abseilen, am Faden des Partners hinüberschwingen und nachklettern.
@@ -95,7 +95,25 @@ Wie Unravel hat Verstrickt 12 Welten (Unravel Two hat 7 Kapitel plus Herausforde
 9. **Schrottplatz**: Eine Kiste als Stufe, eine schwere Kiste zu zweit, Gerüstbretter nach oben, Fässer und Reifen.
 10. **Kürbisnacht** (Halloween): Mondnacht mit kahlen Bäumen, Grabsteinen, leuchtenden Kürbissen und Irrlichtern; Fledermäuse, unter denen man nicht springen darf, Dornen.
 11. **Leuchtturm**: Sturmnacht an der Küste, ein Leuchtturm mit kreisendem Lichtkegel, Strömung, Krabben.
-12. **Nordlicht**: Das Finale unter dem Polarlicht – Eis, Trampolin, Abseilen, Lasso-Kette und eine Fledermaus.
+12. **Nordlicht**: Unter dem Polarlicht – Eis, Trampolin, Abseilen, Lasso-Kette und eine Fledermaus.
+13. **Das Vergessen**: Das Finale. Grauer Regen hat die Farben ausgewaschen; nur im Umkreis der beiden Figuren und um das Erinnerungsstück kehren sie zurück. Wer zusammenbleibt, hat den größeren Farbkreis.
+
+## Geschichte
+
+Die Geschichte folgt dem Konzept „Das Licht am Ende des Fadens“: Aus dem roten Garn eines halbfertigen Schals erwacht eine kleine Figur und sammelt die verlorenen Erinnerungen des alten Leuchtturmwärters Nils, damit seine Tochter Maja ihn noch einmal erreicht.
+
+- **Erinnerungsstücke:** Am Ziel jedes Levels liegt ein Gegenstand aus Nils' Leben mit einem glimmenden Fadenknoten: Kompass, Taschenmesser, Ruder, Holzvogel, Foto, Moltebeeren-Eimer, Flaschenpost, Schlittschuh, Schiffsglocke, Kinderhandschuh, Rettungsring, Schlitten, Stricknadeln. Nach dem Level erzählt eine Karte die Erinnerung dazu.
+- **Der Schal:** Im Levelmenü wächst der Schal mit jeder gefundenen Erinnerung um eine Reihe mit eigenem Muster (Wellen, Möwen, Eiskristalle, Blätter …).
+- **Astrids Lied:** Kommt man dem Erinnerungsstück näher, setzt eine gesummte Melodie ein und wird lauter.
+- **Finale:** Nach „Das Vergessen“ legt Maja ihrem Vater den fertigen Schal um.
+
+Texte und Zuordnung stehen in `src/story.js`. Vom Konzept noch nicht umgesetzt sind unter anderem die Innenräume des Häuschens, Seeglas-Scherben, Zwischensequenzen und neue Mechaniken wie Gezeiten, gefrierendes Garn, Segel und Lichtstrahl-Rätsel.
+
+## Feine Details
+
+- Die Figuren setzen sich nach einer Weile hin und schauen sich um; in der Kälte ziehen sie die Arme vor die Brust, zittern und hauchen Atemwolken; im Regen wird ihr Garn dunkler und tropft; im Schnee bleiben Fußspuren.
+- Möwen an Küste und Leuchtturm, Vögel über Garten und Wald, Schmetterlinge über dem Gras, springende Fische, in den Winterwelten eine Robbe, die auftaucht und herüberschaut.
+- Alles davon ist reine Darstellung (`src/details3d.js`) und ändert die Spielphysik nicht.
 
 ## Aufbau
 
@@ -113,6 +131,8 @@ Wie Unravel hat Verstrickt 12 Welten (Unravel Two hat 7 Kapitel plus Herausforde
 | `src/input.js` | Tastatur, Gamepads, virtuelle Controller, Vibration |
 | `src/touch.js` | Touch-Steuerung im Gamepad-Look (auch der Handy-Controller) |
 | `src/net.js` | Online-Spiel: Räume, Eingaben, Zustandsbilder |
+| `src/story.js` | Geschichte: Erinnerung je Level, Schal-Muster, Finale |
+| `src/details3d.js` | Erinnerungsstücke am Ziel, Figuren-Feinheiten, Tiere |
 | `src/relay.js` | Umweg über MQTT-Vermittler, wenn keine direkte Verbindung zustande kommt |
 | `src/local.js` | Spielen ohne Internet: Verbindungsdaten per QR-Code, Kamera-Scanner |
 | `src/audio.js` | Musik, Naturgeräusche, Effekte |

@@ -483,6 +483,25 @@ test('Nordlicht: Schwung, Trampolin, Abseilen, Lasso-Kette', () => {
   chain(L('nordlicht'), 'solo', 3100, 3640, 3690);
 });
 
+test('Das Vergessen: Schwung, Trampolin, Abseilen, Lasso an die Mauer', () => {
+  swingPool(L('vergessen'), 685, 930, 600);
+  assert(trampoline(new Driver(FF, L('vergessen'), 'coop'), 1300, 1460, 600, 1500, 455));
+  tetherSwing(L('vergessen'), 2200, 455, 2420, 710);
+  lassoWall(L('vergessen'), 3100, 710, 570);
+});
+
+test('Geschichte: jedes Level hat eine Erinnerung und eine eigene Reihe im Schal', () => {
+  const seen = new Set();
+  for (const lv of FF.LEVELS) {
+    const st = FF.storyOf(lv);
+    assert(st && st.name && st.text && st.item && st.pattern && st.world, 'Erinnerung fehlt: ' + lv.id);
+    assert(!seen.has(st.item), 'Erinnerungsstück doppelt: ' + st.item);
+    seen.add(st.item);
+  }
+  const svg = FF.scarfSVG(new Set(FF.LEVELS.slice(0, 3).map((l) => l.id)));
+  assert.strictEqual((svg.match(/url\(#knit\)/g) || []).length, 3, 'drei gestrickte Reihen');
+});
+
 test('Ziel nur zu zweit', () => {
   for (let i = 0; i < FF.LEVELS.length; i++) {
     const d = new Driver(FF, i, 'coop');

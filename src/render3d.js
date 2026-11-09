@@ -35,6 +35,7 @@
     scrap: { top: '#d0c09a', wall: '#7a5e48', wallTex: 'dirt', stone: '#a89a88', leaf: '#b0b080', recolor: 0.4, grass: ['#4a4a28', '#a8a060'], grassRate: 0.7 },
     halloween: { fog: 0.85, top: '#8a8a78', wall: '#6a5a60', wallTex: 'dirt', stone: '#8a8490', leaf: '#5a6048', recolor: 1, grass: ['#262a1c', '#5e6440'] },
     lighthouse: { fog: 0.7, top: '#9aa08e', wall: '#7a7a7e', wallTex: 'gravel', stone: '#9a9ca2', leaf: '#6a7a6a', recolor: 1, grass: ['#283024', '#6a7458'] },
+    forget: { fog: 1.5, top: '#eef4e2', wall: '#806652', wallTex: 'dirt', stone: '#b8b2a8', leaf: '#c8d8a8', recolor: 0.2, grass: ['#3e5a22', '#9bb862'] },
     aurora: { fog: 0.65, top: '#e4ecf0', wall: '#7a7e88', wallTex: 'gravel', stone: '#a8b0bc', leaf: '#6a8a80', recolor: 1, grass: ['#2a3a34', '#8aa49a'], grassRate: 0.6 },
   };
 
@@ -105,7 +106,7 @@
 
   const MOSS = {
     garden: '0.12, 0.2, 0.05', pond: '0.16, 0.2, 0.06', quarry: '0.14, 0.18, 0.09', autumn: '0.2, 0.18, 0.06', dusk: '',
-    marsh: '0.1, 0.18, 0.04', coast: '0.4, 0.36, 0.12', winter: '', scrap: '0.2, 0.18, 0.08', halloween: '0.1, 0.14, 0.06', lighthouse: '0.12, 0.16, 0.08', aurora: '',
+    forget: '0.12, 0.2, 0.05', marsh: '0.1, 0.18, 0.04', coast: '0.4, 0.36, 0.12', winter: '', scrap: '0.2, 0.18, 0.08', halloween: '0.1, 0.14, 0.06', lighthouse: '0.12, 0.16, 0.08', aurora: '',
   };
   const NIGHT = new Set(['dusk', 'halloween', 'lighthouse', 'aurora']);
 
@@ -184,6 +185,8 @@
           focus: { value: 1000 }, range: { value: 900 }, maxR: { value: 9 }, res: { value: new THREE.Vector2(1, 1) },
           wRect: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) }, wDepth: { value: [0, 0, 0, 0] }, wCount: { value: 0 },
           time: { value: 0 }, rain: { value: 0 }, wTint: { value: new THREE.Color(1, 1, 1) },
+          // Das Vergessen: Bild in Graustufen, Farbe nur im Umkreis der Lichtpunkte (Figuren, Ziel)
+          grey: { value: 0 }, gPos: { value: [0, 1, 2].map(() => new THREE.Vector3()) }, aspect: { value: 1.78 },
         };
         this.material = new THREE.ShaderMaterial({
           defines: { DOF: dof ? 1 : 0 },
@@ -193,6 +196,7 @@
             uniform sampler2D tColor; uniform sampler2D tDepth; uniform float near; uniform float far;
             uniform float focus; uniform float range; uniform float maxR; uniform vec2 res; varying vec2 vUv;
             uniform vec4 wRect[4]; uniform float wDepth[4]; uniform int wCount; uniform float time; uniform float rain; uniform vec3 wTint;
+            uniform float grey; uniform vec3 gPos[3]; uniform float aspect;
             float lin(float d){ float z = d * 2.0 - 1.0; return 2.0 * near * far / (far + near - z * (far - near)); }
             vec3 scene(vec2 uv){
               vec3 c = texture2D(tColor, uv).rgb;
@@ -235,6 +239,20 @@
                 c = acc.rgb / acc.a;
               }
             #endif
+              if (grey > 0.0) {
+                // Farbe bleibt in weichen Kreisen um die Lichtpunkte; der Rand flackert leicht wie Nebel
+                float keep = 0.0;
+                for (int i = 0; i < 3; i++) {
+                  vec2 d = (vUv - gPos[i].xy) * vec2(aspect, 1.0);
+                  float r = gPos[i].z * (1.0 + 0.05 * sin(time * 1.7 + float(i) * 2.1 + atan(d.y, d.x) * 3.0));
+                  keep = max(keep, 1.0 - smoothstep(r * 0.45, r, length(d)));
+                }
+                float l = dot(c, vec3(0.3, 0.59, 0.11));
+                // Innen kräftiger und wärmer als die Wirklichkeit, außen kühles Grau
+                vec3 warm = max(mix(vec3(l), c, 1.7), 0.0) * vec3(1.5, 1.38, 1.2);
+                vec3 cold = vec3(l) * vec3(0.94, 0.97, 1.02) * 0.92 + 0.012;
+                c = mix(c, mix(cold, warm, keep), grey);
+              }
               gl_FragColor = vec4(c, 1.0);
             }`,
         });
@@ -431,6 +449,7 @@
       this.buildCritters(g);
       this.buildThemeProps(g, rnd);
       this.buildPrecip(g, rnd);
+      if (this.buildDetails) this.buildDetails(g);
       this.wsSnap = true;
       this.buildComposer();
       this.ropes = [];
@@ -1244,9 +1263,15 @@
         return { glassMat, halo };
       });
       const goal = new THREE.Group();
-      const ball = this.yarnBall(24, [FF.COLORS[0], FF.COLORS[1], '#e9d6b2'], 34, 0.9, rnd);
-      ball.position.set(0, 24, 0);
-      goal.add(ball);
+      // Am Ziel liegt ein Erinnerungsstück mit glimmendem Fadenknoten (details3d.js); ohne Geschichte ein Wollknäuel
+      const story = FF.storyOf && FF.storyOf(g.L);
+      let ball;
+      if (story && this.buildMemory) ball = this.buildMemory(goal, story, rnd);
+      else {
+        ball = this.yarnBall(24, [FF.COLORS[0], FF.COLORS[1], '#e9d6b2'], 34, 0.9, rnd);
+        ball.position.set(0, 24, 0);
+        goal.add(ball);
+      }
       const gh = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.glow, color: col(`rgb(${th.light})`), transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending }));
       gh.position.set(0, 24, -8); gh.scale.set(190, 190, 1);
       goal.add(gh);
@@ -1320,6 +1345,28 @@
         grp.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
         this.scene.add(grp);
       }
+    }
+
+    // Das Vergessen: Farbe nur um die Figuren (größer, wenn sie beisammen sind) und um das Erinnerungsstück
+    greyZone(g, dt) {
+      const fx = this.fx;
+      if (!fx) return;
+      const u = fx.uniforms, on = this.th.grey ? 1 : 0;
+      u.grey.value = on * 0.96;
+      if (!on) return;
+      u.aspect.value = this.camera.aspect;
+      const A = this.tmp.A, P = g.players;
+      const apart = Math.hypot(P[0].x - P[1].x, P[0].y - P[1].y);
+      // Gemeinsam ist der Kreis groß; allein schrumpft er
+      const want = 0.34 - 0.12 * FF.clamp((apart - 120) / 260, 0, 1);
+      this.greyR = this.greyR === undefined ? want : this.greyR + (want - this.greyR) * Math.min(1, dt * 2);
+      const won = g.state === 'won' ? Math.min(1, g.stateT / 1.5) : 0;
+      P.forEach((p, i) => {
+        A.set(p.x + p.w / 2, -(p.y + p.h / 2), ZP).project(this.camera);
+        u.gPos.value[i].set(A.x * 0.5 + 0.5, A.y * 0.5 + 0.5, this.greyR + won * 2.5);
+      });
+      A.set(g.goal.x, -(g.goal.y - 30), 0).project(this.camera);
+      u.gPos.value[2].set(A.x * 0.5 + 0.5, A.y * 0.5 + 0.5, 0.2 + won * 2.5);
     }
 
     yarnMaterial(color) {
@@ -2019,6 +2066,7 @@
       this.camera.updateMatrixWorld();
       this.applyWeather(g, dt);
       this.waterRects(g);
+      this.greyZone(g, dt);
       if (this.fg) this.fg.position.y = -cam.y - cam.h * 0.2;
 
       g.world.crates.forEach((c, i) => this.crates[i] && this.crates[i].position.set(c.x + c.w / 2 + (c.strain > 0 ? Math.sin(this.clock * 60) * 0.8 : 0), -(c.y + c.h / 2), -16));
@@ -2085,6 +2133,7 @@
         this.lighthouse.halo.material.opacity = 0.45 + face * 0.5;
       }
       this.posePassenger(g);
+      if (this.updateDetails) this.updateDetails(g, dt);
 
       if (this.composer) {
         this.grade.uniforms.time.value = this.clock % 10;

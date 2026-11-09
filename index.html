@@ -65,7 +65,7 @@
       <h1 class="logo">Ver<span>strickt</span></h1>
       <p class="tagline">So weit die Wolle reicht</p>
       <svg class="thread" viewBox="0 0 320 24" aria-hidden="true"><path class="t-blue" d="M2 10 C 40 22, 80 2, 120 12 S 190 22, 230 10 S 290 4, 318 14"/><path class="t-red" d="M2 14 C 40 2, 70 24, 110 12 S 180 4, 210 14 S 280 22, 318 8"/></svg>
-      <p class="lede">Zwei kleine Wollfiguren, ein gemeinsamer Faden. Schwingt, klettert und knotet euch durch zwölf Welten nach Hause.</p>
+      <p class="lede">Zwei kleine Wollfiguren, ein gemeinsamer Faden. Sammelt die Erinnerungen des alten Leuchtturmwärters – Reihe für Reihe wächst der Schal, der seine Tochter zu ihm zurückführt.</p>
       <div class="menu">
         <button type="button" class="btn primary" data-act="solo"><b>Allein spielen</b><small>Wechseln und huckepack tragen</small></button>
         <button type="button" class="btn primary blue" data-act="coop"><b>Zu zweit an einem Gerät</b><small>Eine Tastatur, Gamepads oder Bluetooth-Controller</small></button>
@@ -86,6 +86,10 @@
   <section id="scr-levels" class="screen" hidden>
     <div class="panel levels-panel">
       <h2 id="levels-title">Level wählen</h2>
+      <div class="scarf-box">
+        <div id="scarf" class="scarf"></div>
+        <p id="scarf-text" class="note"></p>
+      </div>
       <ol id="level-list" class="levels"></ol>
       <div class="menu row"><button type="button" class="btn" data-act="back">Zurück</button></div>
     </div>
@@ -280,6 +284,11 @@
   <section id="scr-win" class="screen dim" hidden>
     <div class="panel small">
       <h2 id="win-title">Geschafft!</h2>
+      <div id="win-memory" class="memory" hidden>
+        <span class="lbl">Erinnerung</span>
+        <strong id="win-mem-name"></strong>
+        <p id="win-mem-text"></p>
+      </div>
       <p id="win-text" class="lede"></p>
       <div class="menu host-only">
         <button type="button" class="btn primary" data-act="next" id="btn-next">Nächstes Level</button>
@@ -301,6 +310,7 @@
 <script src="src/core.js"></script>
 <script src="src/physics.js"></script>
 <script src="src/levels.js"></script>
+<script src="src/story.js"></script>
 <script src="src/game.js"></script>
 <script src="src/audio.js"></script>
 <script src="src/input.js"></script>
@@ -313,6 +323,7 @@
 <script src="src/textures.js"></script>
 <script src="src/assets3d.js"></script>
 <script src="src/render3d.js"></script>
+<script src="src/details3d.js"></script>
 <script src="src/main.js"></script>
 </body>
 </html>

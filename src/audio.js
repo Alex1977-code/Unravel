@@ -19,6 +19,7 @@
     halloween: { root: 45, scale: [0, 2, 3, 5, 7, 8, 11], bpm: 70, prog: [0, 5, 4, 0], fiddle: 0.75, drone: 0.65, amb: ['wind', 'owl', 'crickets', 'creak'] },
     lighthouse: { root: 43, scale: [0, 2, 3, 5, 7, 8, 10], bpm: 68, prog: [0, 5, 6, 4], fiddle: 0.6, drone: 0.55, amb: ['waves', 'wind', 'wind2'] },
     aurora: { root: 52, scale: [0, 2, 4, 6, 7, 9, 11], bpm: 60, prog: [0, 4, 5, 3], fiddle: 0.65, drone: 0.5, amb: ['wind', 'bells'] },
+    forget: { root: 48, scale: [0, 2, 3, 5, 7, 8, 10], bpm: 54, prog: [0, 5, 3, 4], fiddle: 0.9, drone: 0.7, amb: ['wind'] },
   };
 
   // Wie viel Trommel, Stimme und elektronische Ticks je Welt
@@ -26,10 +27,14 @@
     garden: { drum: 0, voice: 0.5, tick: 0.25 }, quarry: { drum: 0.45, voice: 0.6, tick: 0 }, pond: { drum: 0, voice: 0.4, tick: 0.35 },
     autumn: { drum: 0.6, voice: 0.5, tick: 0.1 }, dusk: { drum: 0.3, voice: 0.8, tick: 0 }, marsh: { drum: 0.25, voice: 0.6, tick: 0.1 },
     coast: { drum: 0, voice: 0.5, tick: 0.3 }, winter: { drum: 0.2, voice: 0.9, tick: 0 }, scrap: { drum: 0.5, voice: 0.3, tick: 0.6 },
-    halloween: { drum: 0.7, voice: 0.7, tick: 0.15 }, lighthouse: { drum: 0.85, voice: 0.6, tick: 0 }, aurora: { drum: 0.3, voice: 1, tick: 0.1 },
+    halloween: { drum: 0.7, voice: 0.7, tick: 0.15 }, lighthouse: { drum: 0.85, voice: 0.6, tick: 0 }, aurora: { drum: 0.3, voice: 1, tick: 0.1 }, forget: { drum: 0.35, voice: 1, tick: 0 },
   };
 
+  // Astrids Lied: [Stufe der Tonleiter, Länge in Achteln]; ein ruhiges Wiegenlied in sechs Takten
+  const ASTRID = [[4, 4], [2, 2], [0, 2], [2, 4], [4, 2], [5, 2], [4, 6], [null, 2], [2, 4], [0, 2], [1, 2], [2, 4], [1, 4], [0, 6], [null, 6]];
+
   const audio = {
+    near: 0, moveT: 3, astridAt: 0, astridI: 0,
     ctx: null,
     muted: FF.store.get('muted', false),
     mood: MOODS.garden,
@@ -123,7 +128,7 @@
       if (this.moodName === name && !force) return;
       this.moodName = name;
       this.mood = MOODS[name];
-      this.step = 0; this.voiceLast = 0;
+      this.step = 0; this.voiceLast = 0; this.astridAt = 0; this.astridI = 0;
       if (!this.ctx) return;
       const t = this.ctx.currentTime, a = this.mood.amb;
       this.wind.g.gain.setTargetAtTime(a.includes('wind') ? 0.22 : 0.06, t, 1.5);
@@ -352,15 +357,23 @@
           if (Math.random() < 0.88) this.piano(deg(chord + a) + 12, t + human(), 0.07 + Math.random() * 0.03, -0.15);
           const B = [4, null, 9, null, 11];
           const bnote = B[s % 5];
-          if (section >= 1 && bnote !== null && Math.random() < 0.6) this.piano(deg(chord + bnote) + 24, t + human(), 0.04 + Math.random() * 0.02, 0.3);
+          // Die hohe Schleife gehört zur Bewegung: Wer länger stillsteht, hört nur noch die ruhige Grundfläche
+          if (section >= 1 && bnote !== null && this.moveT > 0 && Math.random() < 0.6) this.piano(deg(chord + bnote) + 24, t + human(), 0.04 + Math.random() * 0.02, 0.3);
         }
         if (chordStart) {
           this.piano(tones[0] - 12, t, 0.08, -0.25);
           if (section >= 1) this.sub(tones[0] - 24, t, eighth * 16, 0.05 * M.drone + 0.03);
           if (section >= 1) this.strings([tones[0], tones[1] + 12, tones[2]], t, eighth * 16, 0.035 + 0.02 * M.drone);
         }
-        // Stimme: lange Töne über den Akkorden, schrittweise geführt
-        if ((section === 2 || section === 3) && chordStart && Math.random() < 0.35 + M.fiddle * 0.6) {
+        // Erinnerung: Astrids Lied, gesummt – setzt ein, wenn ein Erinnerungsstück nah ist, und wird lauter, je näher man kommt
+        if (this.near > 0.05) {
+          if (s >= this.astridAt) {
+            const [d, len] = ASTRID[this.astridI++ % ASTRID.length];
+            this.astridAt = s + len;
+            if (d !== null) this.voice(deg(d) + 12, t, eighth * len * 0.85, 0.02 + 0.075 * this.near);
+          }
+        } else if ((section === 2 || section === 3) && chordStart && Math.random() < 0.35 + M.fiddle * 0.6) {
+          // Sonst: lange Töne über den Akkorden, schrittweise geführt
           let m = this.voiceLast || tones[2] + 12;
           const target = tones[Math.floor(Math.random() * 3)] + 12;
           if (Math.abs(target - m) > 5) m += Math.sign(target - m) * (Math.random() < 0.5 ? 2 : 3); else m = target;
@@ -458,6 +471,17 @@
 
     // Laufende Rückmeldung aus dem Spiel: Schritte, Faden-Knarzen, Schwung-Rauschen.
     update(g, dt) {
+      // Für die Musik: Nähe zum Erinnerungsstück und ob sich gerade jemand bewegt
+      if (!g) { this.near = 0; this.moveT = 3; }
+      else {
+        let dist = 1e9, moving = false;
+        for (const p of g.players) {
+          dist = Math.min(dist, Math.hypot(p.x - g.goal.x, p.y + p.h - g.goal.y));
+          if (Math.abs(p.vx) > 20 || !p.grounded) moving = true;
+        }
+        this.near = g.state === 'won' ? 1 : Math.max(0, Math.min(1, 1 - (dist - 120) / 620));
+        this.moveT = moving ? 4 : this.moveT - dt;
+      }
       if (!this.ctx || this.muted || !g) return;
       const t = this.ctx.currentTime;
       let swing = 0;

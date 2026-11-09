@@ -513,3 +513,14 @@ body.local-room .lobby-code .qr, .local-step .qr { width: min(260px, 72vw, 64vh)
 .scan-frame { position: relative; width: min(64vw, 64vh); aspect-ratio: 1; border-radius: 18px; box-shadow: 0 0 0 200vmax rgba(0, 0, 0, 0.45); outline: 3px solid rgba(241, 232, 214, 0.9); }
 .scan p { position: absolute; top: max(18px, env(safe-area-inset-top)); left: 16px; right: 16px; margin: 0; text-align: center; color: var(--linen); font: 700 16px var(--body); text-shadow: 0 1px 4px #000; }
 .scan .btn { position: absolute; bottom: max(22px, env(safe-area-inset-bottom)); }
+
+/* Geschichte: der Schal im Levelmenü und die Erinnerung im Zielbild */
+.scarf-box { margin: -4px 0 14px; }
+.scarf { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+.scarf svg { display: block; height: 62px; min-width: 100%; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.45)); }
+.scarf-box .note { margin: 6px 0 0; }
+.memory { margin: 4px 0 14px; padding: 12px 14px; border-radius: 12px; background: var(--glass-2); border: 1px solid var(--line); border-left: 3px solid var(--wool-red); }
+.memory .lbl { display: block; font: 800 11px var(--body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--linen-faint); }
+.memory strong { display: block; margin: 2px 0 4px; font: italic 600 21px var(--display, Georgia, serif); color: var(--linen); }
+.memory p { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--linen-dim); }
+.level-card .world { display: block; font: 800 10.5px var(--body); letter-spacing: 0.12em; text-transform: uppercase; color: var(--linen-faint); margin-bottom: 1px; }

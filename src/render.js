@@ -87,6 +87,14 @@
       water: ['#5a7080', '#1c3444', '#08141c'],
       tree: 'pine', amb: 'mist', rays: 0.3,
     },
+    // Das Vergessen: verregnetes Grau; die Farbe kommt nur um die Figuren zurück (Bildeffekt im 3D-Renderer)
+    forget: {
+      sky: ['#6e7378', '#989da0', '#c2c4c2'], sun: [0.5, 0.2], light: '232,236,240', haze: '168,172,174', grey: true,
+      far: '#8a9092', far2: '#74797c', near: '#22262a',
+      earth: '#34302c', earth2: '#121110', stone: '#7c7a78', moss: '#8a9a5a', moss2: '#4a5632', grass: '#a2b06a',
+      water: ['#9aa6ac', '#3c5058', '#141c20'],
+      tree: 'dead', amb: 'mist', rays: 0.25,
+    },
     aurora: {
       sky: ['#06101e', '#173248', '#3c6a6a'], sun: [0.65, 0.2], light: '200,240,230', haze: '60,90,100', moon: true, aurora: true,
       far: '#1e3442', far2: '#162836', near: '#081016',

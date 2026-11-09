@@ -291,6 +291,31 @@
       traps: [[2200, 2420, 785]],
       goal: [4200, 710],
     },
+    {
+      id: 'vergessen',
+      name: 'Das Vergessen',
+      blurb: 'Grauer Nebel wäscht die Farben aus. Nur um euch herum kehren sie zurück.',
+      theme: 'forget',
+      width: 3800, height: 1150,
+      spawn: [110, 600],
+      solids: [
+        col(-60, 700, 600),
+        [300, 565, 80, 35],
+        col(930, 1500, 600),
+        col(1500, 2200, 455),
+        col(2200, 2420, 905),
+        col(2420, 3100, 710),
+        col(3100, 3860, 570),
+        ...walls(3800),
+      ],
+      water: [[700, 820, 230, 400]],
+      anchors: [[815, 470], [1300, 582, 1], [1460, 582, 1], [3110, 490]],
+      checkpoints: [[1000, 600], [1600, 455], [2500, 710], [3200, 570]],
+      beads: [[340, 525], [815, 560], [1380, 480], [1900, 420], [2310, 850], [2700, 670], [3095, 530], [3400, 530]],
+      signs: [[200, 600, 'forget'], [1200, 600, 'knot'], [2000, 455, 'grip'], [2900, 710, 'lasso']],
+      traps: [[2200, 2420, 785]],
+      goal: [3620, 570],
+    },
   ];
 
   // Hinweistafeln. {taste} wird je nach Steuerung durch Tastenkappen ersetzt.
@@ -332,6 +357,7 @@
     crab: { all: 'Krabben zwicken!\nSpring im richtigen Moment über sie hinweg {up}.' },
     bat: { all: 'Fledermäuse! Unter ihnen nicht springen –\nwarte, bis sie vorbeigeflattert sind.' },
     ice: { all: 'Eis ist glatt: Ihr kommt schwer in Schwung\nund rutscht noch ein Stück weiter.' },
+    forget: { all: 'Das Vergessen wäscht die Farben aus.\nWo ihr seid, kehren sie zurück – bleibt beisammen.' },
     planks: { all: 'Über die Bretter nach oben.\nVon unten springst du einfach hindurch.' },
   };
 })();

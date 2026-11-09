@@ -9,7 +9,7 @@
 
   const HDRI = {
     garden: 'forest', quarry: 'forest', pond: 'sunset', autumn: 'sunrise', dusk: 'night',
-    marsh: 'forest', coast: 'sunrise', winter: 'sunrise', scrap: 'sunset', halloween: 'night', lighthouse: 'night', aurora: 'night',
+    marsh: 'forest', coast: 'sunrise', winter: 'sunrise', scrap: 'sunset', halloween: 'night', lighthouse: 'night', aurora: 'night', forget: 'forest',
   };
 
   function url(p) {

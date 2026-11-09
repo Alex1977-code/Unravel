@@ -88,16 +88,24 @@
     $('#levels-title').textContent = mode === 'solo' ? 'Allein – Level wählen' : 'Zu zweit – Level wählen';
     const list = $('#level-list');
     list.textContent = '';
+    // Der Schal: jede gefundene Erinnerung ist eine Reihe (egal ob allein oder zu zweit gefunden)
+    const done = new Set(FF.LEVELS.filter((L) => (progress['solo:' + L.id] || {}).done || (progress['coop:' + L.id] || {}).done).map((L) => L.id));
+    $('#scarf').innerHTML = FF.scarfSVG(done);
+    $('#scarf-text').textContent = done.size === 0 ? FF.STORY.intro
+      : done.size === FF.LEVELS.length ? 'Der Schal ist fertig. Maja hat ihn Nils um die Schultern gelegt.'
+        : `Der Schal hat ${done.size} von ${FF.LEVELS.length} Reihen. Jede Erinnerung strickt eine weitere.`;
     FF.LEVELS.forEach((L, i) => {
       const pr = progress[mode + ':' + L.id] || {};
       const li = document.createElement('li');
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'btn level-card';
-      b.innerHTML = `<span class="num">${i + 1}</span><span><span class="name"></span><br><span class="blurb"></span></span><span class="meta"></span>`;
+      b.innerHTML = `<span class="num">${i + 1}</span><span><span class="world"></span><span class="name"></span><br><span class="blurb"></span></span><span class="meta"></span>`;
       const th = FF.THEMES[L.theme];
       if (th) b.querySelector('.num').style.background = `linear-gradient(180deg, ${th.sky[0]}, ${th.sky[1]} 55%, ${th.near} 56%, ${th.earth2})`;
+      const st = FF.storyOf(L);
       b.querySelector('.name').textContent = L.name;
+      b.querySelector('.world').textContent = st ? st.world : '';
       b.querySelector('.blurb').textContent = L.blurb;
       b.querySelector('.meta').innerHTML = pr.done
         ? `<span class="done">✓ geschafft</span> · ${pr.beads || 0}/${L.beads.length}`
@@ -200,10 +208,12 @@
   }
 
   function showWin(i, got, total) {
-    const last = i === FF.LEVELS.length - 1;
-    $('#win-title').textContent = last ? 'Endlich zu Hause!' : 'Geschafft!';
+    const last = i === FF.LEVELS.length - 1, st = FF.storyOf(FF.LEVELS[i]);
+    $('#win-title').textContent = last ? FF.STORY.finale.title : 'Eine neue Reihe im Schal';
+    $('#win-memory').hidden = !st;
+    if (st) { $('#win-mem-name').textContent = st.name; $('#win-mem-text').textContent = st.text; }
     let text = last
-      ? `Ihr habt den ganzen Weg gemeinsam gemeistert. ${got} von ${total} Funken im letzten Level gesammelt.`
+      ? `${FF.STORY.finale.text} (${got} von ${total} Funken gesammelt.)`
       : `„${FF.LEVELS[i].name}“ liegt hinter euch. ${got} von ${total} Funken gesammelt.`;
     if (net && net.role === 'guest') text += ' Rot wählt, wie es weitergeht.';
     $('#win-text').textContent = text;

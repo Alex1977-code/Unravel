@@ -17,7 +17,7 @@
   };
   const AUTO = {
     garden: 'sun', quarry: 'rain', pond: 'sun', autumn: 'storm', dusk: 'snow',
-    marsh: 'rain', coast: 'sun', winter: 'snow', scrap: 'sun', halloween: 'sun', lighthouse: 'storm', aurora: 'frost',
+    marsh: 'rain', coast: 'sun', winter: 'snow', scrap: 'sun', halloween: 'sun', lighthouse: 'storm', aurora: 'frost', forget: 'rain',
   };
   const NAMES = { auto: 'Automatisch', sun: 'Sonne', rain: 'Regen', storm: 'Sturm', snow: 'Schnee', frost: 'Frost' };
   FF.WEATHER_ORDER = ['auto', 'sun', 'rain', 'storm', 'snow'];
